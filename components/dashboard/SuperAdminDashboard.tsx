@@ -15,12 +15,17 @@ import {
   Printer,
   ShoppingCart,
   Users,
+  Circle,
+  Activity,
 } from "lucide-react";
 import type { ElementType } from "react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-import type { SuperAdminDashboard as SuperAdminDashboardData } from "@/app/types/dashboard";
+import type {
+  StaffActivity,
+  SuperAdminDashboard as SuperAdminDashboardData,
+} from "@/app/types/dashboard";
 
 interface SuperAdminDashboardProps {
   data: SuperAdminDashboardData;
@@ -33,6 +38,80 @@ function formatCurrency(value: number | string) {
   })}`;
 }
 
+function formatDate(value: string | null) {
+  if (!value) return "Never";
+
+  return new Intl.DateTimeFormat("en-NG", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
+}
+
+function relativeTime(value: string | null) {
+  if (!value) return "No activity";
+
+  const diff = Date.now() - new Date(value).getTime();
+
+  if (diff < 0) return "Just now";
+
+  const mins = Math.floor(diff / 60000);
+
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins} min ago`;
+
+  const hrs = Math.floor(mins / 60);
+
+  if (hrs < 24) return `${hrs} hr ago`;
+
+  return `${Math.floor(hrs / 24)} day(s) ago`;
+}
+
+function formatRole(role: StaffActivity["role"]) {
+  switch (role) {
+    case "FRONT_DESK":
+      return "Front Desk";
+
+    case "GRAPHIC_LEAD":
+      return "Graphic Lead";
+
+    case "GRAPHIC_DESIGNER":
+      return "Graphic Designer";
+
+    case "SUPER_ADMIN":
+      return "Super Admin";
+
+    default:
+      return role;
+  }
+}
+
+function presenceBadge(staff: StaffActivity) {
+  if (staff.is_online) {
+    return {
+      label: "Online",
+      className:
+        "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+      dot: "text-emerald-500",
+    };
+  }
+
+  if (staff.last_activity) {
+    return {
+      label: "Offline",
+      className:
+        "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+      dot: "text-slate-400",
+    };
+  }
+
+  return {
+    label: "Offline",
+    className:
+      "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+    dot: "text-slate-400",
+  };
+}
+
 function SectionHeading({
   title,
   description,
@@ -41,8 +120,8 @@ function SectionHeading({
   description: string;
 }) {
   return (
-    <div className="mb-4">
-      <h2 className="text-base font-semibold tracking-tight">{title}</h2>
+    <div className="mb-5">
+      <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
 
       <p className="mt-1 text-sm text-muted-foreground">{description}</p>
     </div>
@@ -71,22 +150,20 @@ function StatCard({
   };
 
   return (
-    <Card className="group border-border/60 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+    <Card className="border-border/60 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
       <CardContent className="p-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-muted-foreground">{title}</p>
+        <div className="flex items-start justify-between">
+          <div>
+            <p className="text-sm text-muted-foreground">{title}</p>
 
-            <p className="mt-2 truncate text-2xl font-bold tracking-tight tabular-nums">
+            <p className="mt-2 text-3xl font-bold tracking-tight tabular-nums">
               {value}
             </p>
 
             <p className="mt-1 text-xs text-muted-foreground">{description}</p>
           </div>
 
-          <div
-            className={`shrink-0 rounded-xl p-2.5 transition-transform group-hover:scale-105 ${styles[tone]}`}
-          >
+          <div className={`rounded-xl p-3 ${styles[tone]}`}>
             <Icon className="h-5 w-5" />
           </div>
         </div>
@@ -105,15 +182,13 @@ function MetricRow({
   warning?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-border/50 py-3 last:border-0">
+    <div className="flex items-center justify-between border-b border-border/50 py-3 last:border-0">
       <span className="text-sm text-muted-foreground">{label}</span>
 
       <span
-        className={
-          warning
-            ? "text-sm font-semibold text-amber-600 dark:text-amber-400 tabular-nums"
-            : "text-sm font-semibold tabular-nums"
-        }
+        className={`text-sm font-semibold tabular-nums ${
+          warning ? "text-amber-600 dark:text-amber-400" : ""
+        }`}
       >
         {value}
       </span>
@@ -141,8 +216,8 @@ function PipelineCard({
   };
 
   return (
-    <div className="group rounded-xl border border-border/60 bg-card p-4 transition-colors hover:bg-muted/20">
-      <div className="flex items-start justify-between gap-3">
+    <div className="rounded-xl border border-border/60 bg-card p-4 transition hover:bg-muted/20">
+      <div className="flex items-center justify-between">
         <div className={`rounded-lg p-2 ${styles[tone]}`}>
           <Icon className="h-4 w-4" />
         </div>
@@ -153,6 +228,28 @@ function PipelineCard({
       <p className="mt-4 text-sm font-medium">{title}</p>
     </div>
   );
+}
+
+function statusBadge(status: string | null) {
+  switch (status) {
+    case "IN_PROGRESS":
+      return "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300";
+
+    case "SUBMITTED":
+      return "bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300";
+
+    case "REVISION_REQUIRED":
+      return "bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300";
+
+    case "APPROVED":
+      return "bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300";
+
+    case "ASSIGNED":
+      return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
+
+    default:
+      return "bg-muted text-muted-foreground";
+  }
 }
 
 export default function SuperAdminDashboard({
@@ -180,26 +277,53 @@ export default function SuperAdminDashboard({
 
   return (
     <div className="space-y-8">
-      {/* HEADER */}
-      <div>
-        <p className="text-sm font-medium text-muted-foreground">
-          Business command center
-        </p>
+      {/* Executive Header */}
+      <div className="rounded-2xl border bg-gradient-to-br from-background to-muted/30 p-6">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground">
+              PrintFlow Command Center
+            </p>
 
-        <h1 className="mt-1 text-xl font-semibold tracking-tight">Overview</h1>
+            <h1 className="mt-1 text-3xl font-bold tracking-tight">
+              Business Overview
+            </h1>
 
-        <p className="mt-1 text-sm text-muted-foreground">
-          Monitor business activity, production and financial performance.
-        </p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Monitor operations, production, designers, and financial
+              performance in one place.
+            </p>
+          </div>
+
+          <div
+            className={`rounded-xl border px-4 py-3 ${
+              hasAttention
+                ? "border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/20"
+                : "border-emerald-200 bg-emerald-50 dark:border-emerald-900 dark:bg-emerald-950/20"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {hasAttention ? (
+                <AlertTriangle className="h-5 w-5 text-amber-600" />
+              ) : (
+                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              )}
+
+              <span className="font-semibold">
+                {hasAttention ? "Needs Attention" : "Operations Healthy"}
+              </span>
+            </div>
+
+            <p className="mt-1 text-sm text-muted-foreground">
+              {data.business.overdue_orders} overdue orders •{" "}
+              {data.tasks.overdue} overdue tasks
+            </p>
+          </div>
+        </div>
       </div>
 
-      {/* BUSINESS OVERVIEW */}
+      {/* KPI */}
       <section>
-        <SectionHeading
-          title="Business overview"
-          description="Key business metrics and financial activity."
-        />
-
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <StatCard
             title="Customers"
@@ -211,12 +335,12 @@ export default function SuperAdminDashboard({
           <StatCard
             title="Orders"
             value={data.business.orders}
-            description={`${data.business.new_orders_today} received today`}
+            description={`${data.business.new_orders_today} today`}
             icon={ShoppingCart}
           />
 
           <StatCard
-            title="Revenue this month"
+            title="Revenue"
             value={formatCurrency(data.business.revenue_this_month)}
             description={`${formatCurrency(
               data.business.payments_today,
@@ -228,7 +352,7 @@ export default function SuperAdminDashboard({
           <StatCard
             title="Outstanding"
             value={formatCurrency(data.business.outstanding_balance)}
-            description="Customer balances due"
+            description="Customer balances"
             icon={CreditCard}
             tone={
               Number(data.business.outstanding_balance) > 0
@@ -239,75 +363,146 @@ export default function SuperAdminDashboard({
         </div>
       </section>
 
-      {/* ATTENTION + WORKLOAD */}
+      {/* Live Staff */}
+      <section>
+        <SectionHeading
+          title="Live Staff"
+          description="Monitor Front Desk, Graphic Lead, and Graphic Designer presence and activity."
+        />
+
+        <Card className="border-border/60 shadow-sm">
+          <CardContent className="p-0">
+            {data.staff.length === 0 ? (
+              <div className="py-12 text-center text-sm text-muted-foreground">
+                No staff activity available.
+              </div>
+            ) : (
+              <div className="divide-y">
+                {data.staff.map((staff) => {
+                  const presence = presenceBadge(staff);
+
+                  return (
+                    <div
+                      key={staff.id}
+                      className="flex flex-col gap-4 p-5 transition hover:bg-muted/20 lg:flex-row lg:items-center lg:justify-between"
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="relative mt-1">
+                          <div className="flex h-11 w-11 items-center justify-center rounded-full bg-muted">
+                            <Users className="h-5 w-5 text-muted-foreground" />
+                          </div>
+
+                          <Circle
+                            className={`absolute -bottom-0.5 -right-0.5 h-4 w-4 fill-current ${presence.dot}`}
+                          />
+                        </div>
+
+                        <div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="font-semibold">{staff.name}</h3>
+
+                            <span className="text-xs text-muted-foreground">
+                              @{staff.username}
+                            </span>
+
+                            <span className="rounded-full bg-muted px-2 py-1 text-xs font-medium text-muted-foreground">
+                              {formatRole(staff.role)}
+                            </span>
+
+                            <span
+                              className={`rounded-full px-2 py-1 text-xs font-medium ${presence.className}`}
+                            >
+                              {presence.label}
+                            </span>
+                          </div>
+
+                          <div className="mt-2 space-y-1 text-sm text-muted-foreground">
+                            <p>
+                              <span className="font-medium text-foreground">
+                                Current Task:
+                              </span>{" "}
+                              {staff.current_task ?? "No active task"}
+                            </p>
+
+                            <div className="flex flex-wrap items-center gap-3 text-xs">
+                              <span className="flex items-center gap-1">
+                                <Activity className="h-3 w-3" />
+                                {relativeTime(staff.last_activity)}
+                              </span>
+
+                              <span>
+                                Last sign-in: {formatDate(staff.last_login)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {staff.task_status && (
+                        <span
+                          className={`inline-flex w-fit rounded-full px-3 py-1 text-xs font-semibold ${statusBadge(
+                            staff.task_status,
+                          )}`}
+                        >
+                          {staff.task_status.replaceAll("_", " ")}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </section>
+
+      {/* Attention + Workload */}
       <section className="grid gap-4 lg:grid-cols-2">
-        <Card
-          className={
-            hasAttention
-              ? "border-amber-200 shadow-sm dark:border-amber-900/50"
-              : "border-emerald-200 shadow-sm dark:border-emerald-900/50"
-          }
-        >
-          <CardHeader className="border-b border-border/50">
-            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              {hasAttention ? (
-                <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-              ) : (
-                <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-              )}
-              Attention
-            </CardTitle>
+        <Card>
+          <CardHeader>
+            <CardTitle>Attention Required</CardTitle>
           </CardHeader>
 
-          <CardContent className="p-5">
+          <CardContent>
             <MetricRow
-              label="Overdue orders"
+              label="Overdue Orders"
               value={data.business.overdue_orders}
               warning={data.business.overdue_orders > 0}
             />
 
-            <MetricRow
-              label="Orders due today"
-              value={data.business.due_today}
-            />
+            <MetricRow label="Due Today" value={data.business.due_today} />
 
             <MetricRow
-              label="Overdue tasks"
+              label="Overdue Tasks"
               value={data.tasks.overdue}
               warning={data.tasks.overdue > 0}
             />
           </CardContent>
         </Card>
 
-        <Card className="border-border/60 shadow-sm">
-          <CardHeader className="border-b border-border/50">
-            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              <ClipboardList className="h-4 w-4 text-muted-foreground" />
-              Active workload
-            </CardTitle>
+        <Card>
+          <CardHeader>
+            <CardTitle>Current Workload</CardTitle>
           </CardHeader>
 
-          <CardContent className="p-5">
-            <MetricRow
-              label="Active production folders"
-              value={activeProduction}
-            />
+          <CardContent>
+            <MetricRow label="Active Production" value={activeProduction} />
 
-            <MetricRow label="Active design tasks" value={activeTasks} />
+            <MetricRow label="Active Tasks" value={activeTasks} />
 
             <MetricRow
-              label="Completed production folders"
+              label="Completed Production"
               value={data.production.completed}
             />
           </CardContent>
         </Card>
       </section>
 
-      {/* ORDERS */}
+      {/* Order Pipeline */}
       <section>
         <SectionHeading
-          title="Order pipeline"
-          description="Current distribution of orders across the business workflow."
+          title="Order Pipeline"
+          description="Current order distribution across the business workflow."
         />
 
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -324,13 +519,13 @@ export default function SuperAdminDashboard({
           />
 
           <PipelineCard
-            title="Ready for production"
+            title="Ready for Production"
             value={data.orders.ready_for_production}
             icon={PackageCheck}
           />
 
           <PipelineCard
-            title="In production"
+            title="In Production"
             value={data.orders.in_production}
             icon={Factory}
           />
@@ -356,75 +551,67 @@ export default function SuperAdminDashboard({
           />
 
           <PipelineCard
-            title="Due today"
+            title="Due Today"
             value={data.orders.due_today}
             icon={Clock3}
           />
         </div>
       </section>
 
-      {/* PRODUCTION */}
+      {/* Production */}
       <section>
         <SectionHeading
-          title="Production pipeline"
-          description="Where production folders currently sit in the workflow."
+          title="Production Pipeline"
+          description="Production folders currently moving through the workflow."
         />
 
-        <Card className="border-border/60 shadow-sm">
-          <CardContent className="p-5">
-            <div className="grid gap-x-8 md:grid-cols-2 lg:grid-cols-3">
-              <MetricRow label="Created" value={data.production.created} />
+        <Card>
+          <CardContent className="grid gap-x-8 p-5 md:grid-cols-2 lg:grid-cols-3">
+            <MetricRow label="Created" value={data.production.created} />
 
-              <MetricRow
-                label="Waiting for requirements"
-                value={data.production.waiting}
-              />
+            <MetricRow label="Waiting" value={data.production.waiting} />
 
-              <MetricRow
-                label="Ready for design"
-                value={data.production.ready_for_design}
-              />
+            <MetricRow
+              label="Ready for Design"
+              value={data.production.ready_for_design}
+            />
 
-              <MetricRow label="In design" value={data.production.in_design} />
+            <MetricRow label="In Design" value={data.production.in_design} />
 
-              <MetricRow
-                label="Design review"
-                value={data.production.design_review}
-              />
+            <MetricRow
+              label="Design Review"
+              value={data.production.design_review}
+            />
 
-              <MetricRow
-                label="Approved for print"
-                value={data.production.approved_for_print}
-              />
+            <MetricRow
+              label="Approved for Print"
+              value={data.production.approved_for_print}
+            />
 
-              <MetricRow label="Printing" value={data.production.printing} />
+            <MetricRow label="Printing" value={data.production.printing} />
 
-              <MetricRow label="Completed" value={data.production.completed} />
+            <MetricRow label="Completed" value={data.production.completed} />
 
-              <MetricRow label="Cancelled" value={data.production.cancelled} />
-            </div>
+            <MetricRow label="Cancelled" value={data.production.cancelled} />
           </CardContent>
         </Card>
       </section>
 
-      {/* TASKS + FINANCIAL */}
+      {/* Tasks + Financial */}
       <section className="grid gap-4 lg:grid-cols-2">
-        <Card className="border-border/60 shadow-sm">
-          <CardHeader className="border-b border-border/50">
-            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              <ClipboardList className="h-4 w-4 text-muted-foreground" />
-              Design task workload
-            </CardTitle>
+        <Card>
+          <CardHeader>
+            <CardTitle>Design Tasks</CardTitle>
           </CardHeader>
 
-          <CardContent className="p-5">
+          <CardContent>
             <MetricRow label="Assigned" value={data.tasks.assigned} />
 
-            <MetricRow label="In progress" value={data.tasks.in_progress} />
+            <MetricRow label="In Progress" value={data.tasks.in_progress} />
 
             <MetricRow label="Submitted" value={data.tasks.submitted} />
 
-            <MetricRow label="Revision required" value={data.tasks.revision} />
+            <MetricRow label="Revision" value={data.tasks.revision} />
 
             <MetricRow label="Approved" value={data.tasks.approved} />
 
@@ -436,83 +623,77 @@ export default function SuperAdminDashboard({
           </CardContent>
         </Card>
 
-        <Card className="border-border/60 shadow-sm">
-          <CardHeader className="border-b border-border/50">
-            <CardTitle className="flex items-center gap-2 text-sm font-semibold">
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
-              Financial position
-            </CardTitle>
+        <Card>
+          <CardHeader>
+            <CardTitle>Financial Position</CardTitle>
           </CardHeader>
 
-          <CardContent className="p-5">
+          <CardContent>
             <MetricRow
-              label="Invoice total"
+              label="Invoice Total"
               value={formatCurrency(data.financial.invoice_total)}
             />
 
             <MetricRow
-              label="Payments received"
+              label="Payments"
               value={formatCurrency(data.financial.payments_total)}
             />
 
             <MetricRow
-              label="Outstanding balance"
+              label="Outstanding"
               value={formatCurrency(data.financial.outstanding_balance)}
               warning={Number(data.financial.outstanding_balance) > 0}
             />
 
-            <MetricRow
-              label="Unpaid invoices"
-              value={data.financial.unpaid}
-              warning={data.financial.unpaid > 0}
-            />
+            <MetricRow label="Unpaid" value={data.financial.unpaid} />
 
             <MetricRow
-              label="Partially paid"
+              label="Partially Paid"
               value={data.financial.partially_paid}
             />
 
-            <MetricRow label="Paid invoices" value={data.financial.paid} />
+            <MetricRow label="Paid" value={data.financial.paid} />
 
-            <MetricRow label="Void invoices" value={data.financial.void} />
+            <MetricRow label="Void" value={data.financial.void} />
           </CardContent>
         </Card>
       </section>
 
-      {/* QUICK PRODUCTION SIGNAL */}
+      {/* Production Snapshot */}
       <section>
+        <SectionHeading
+          title="Production Snapshot"
+          description="Live view of the current production stage."
+        />
+
         <div className="grid gap-3 sm:grid-cols-3">
-          <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-card p-4">
+          <div className="flex items-center gap-3 rounded-xl border p-4">
             <div className="rounded-lg bg-muted p-2">
               <Palette className="h-4 w-4 text-muted-foreground" />
             </div>
 
             <div>
-              <p className="text-xs text-muted-foreground">Designing</p>
+              <p className="text-xs text-muted-foreground">In Design</p>
 
-              <p className="mt-1 text-xl font-bold tabular-nums">
-                {data.production.in_design}
-              </p>
+              <p className="text-2xl font-bold">{data.production.in_design}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-card p-4">
+          <div className="flex items-center gap-3 rounded-xl border p-4">
             <div className="rounded-lg bg-muted p-2">
               <FileCheck2 className="h-4 w-4 text-muted-foreground" />
             </div>
 
             <div>
-              <p className="text-xs text-muted-foreground">
-                Approved for print
-              </p>
+              <p className="text-xs text-muted-foreground">Approved</p>
 
-              <p className="mt-1 text-xl font-bold tabular-nums">
+              <p className="text-2xl font-bold">
                 {data.production.approved_for_print}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 rounded-xl border border-border/60 bg-card p-4">
+          <div className="flex items-center gap-3 rounded-xl border p-4">
             <div className="rounded-lg bg-muted p-2">
               <Printer className="h-4 w-4 text-muted-foreground" />
             </div>
@@ -520,9 +701,7 @@ export default function SuperAdminDashboard({
             <div>
               <p className="text-xs text-muted-foreground">Printing</p>
 
-              <p className="mt-1 text-xl font-bold tabular-nums">
-                {data.production.printing}
-              </p>
+              <p className="text-2xl font-bold">{data.production.printing}</p>
             </div>
           </div>
         </div>
