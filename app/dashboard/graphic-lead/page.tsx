@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import DashboardService from "@/app/services/dashboard.service";
@@ -14,9 +14,8 @@ export default function GraphicLeadPage() {
   const { user, hydrated, isLoading } = useAuthStore();
 
   const [data, setData] = useState<GraphicLeadDashboardType | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
-  const hasLoadedRef = useRef(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!hydrated || isLoading) return;
@@ -31,19 +30,11 @@ export default function GraphicLeadPage() {
       return;
     }
 
-    if (hasLoadedRef.current) return;
-
-    hasLoadedRef.current = true;
-
-    let cancelled = false;
-
     const loadDashboard = async () => {
       try {
         setError(null);
 
         const response = await DashboardService.getSummary();
-
-        if (cancelled) return;
 
         if (response.data.role !== "GRAPHIC_LEAD") {
           throw new Error("Invalid dashboard response.");
@@ -51,27 +42,18 @@ export default function GraphicLeadPage() {
 
         setData(response.data);
       } catch (error) {
-        if (cancelled) return;
-
         console.error("Failed to load dashboard:", error);
-
         setError("Unable to load dashboard.");
       }
     };
 
     loadDashboard();
-
-    return () => {
-      cancelled = true;
-    };
   }, [hydrated, isLoading, user, router]);
 
   if (!hydrated || isLoading) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="text-sm text-muted-foreground">
-          Loading dashboard...
-        </div>
+        Loading...
       </div>
     );
   }
@@ -82,7 +64,7 @@ export default function GraphicLeadPage() {
 
   if (error) {
     return (
-      <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
+      <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">
         {error}
       </div>
     );
@@ -91,9 +73,7 @@ export default function GraphicLeadPage() {
   if (!data) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center">
-        <div className="text-sm text-muted-foreground">
-          Loading dashboard...
-        </div>
+        Loading dashboard...
       </div>
     );
   }
