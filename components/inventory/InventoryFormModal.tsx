@@ -8,6 +8,7 @@ export interface InventoryForm {
   unit: string;
   quantity: string;
   minimum_quantity: string;
+  unit_selling_price: string;
   description: string;
 }
 
@@ -30,129 +31,188 @@ export default function InventoryFormModal({
   onSubmit,
   onChange,
 }: InventoryFormModalProps) {
-  if (!open) {
-    return null;
-  }
+  if (!open) return null;
 
   const isCreate = mode === "create";
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!saving) {
+      onSubmit();
+    }
+  };
 
   return (
     <InventoryModal
       title={isCreate ? "Add Inventory Item" : "Edit Inventory Item"}
       onClose={onClose}
+      wide
     >
-      <div className="space-y-4">
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
-            Item Name
-          </label>
-
-          <input
-            value={form.name}
-            onChange={(event) => onChange("name", event.target.value)}
-            placeholder="e.g. A4 Paper"
-            className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-gray-400"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Category
+      <form onSubmit={handleSubmit}>
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <label
+              htmlFor="inventory-name"
+              className="text-sm font-medium text-gray-700"
+            >
+              Item Name
             </label>
 
             <input
-              value={form.category}
-              onChange={(event) => onChange("category", event.target.value)}
-              placeholder="e.g. Paper"
-              className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-gray-400"
+              id="inventory-name"
+              type="text"
+              value={form.name}
+              onChange={(e) => onChange("name", e.target.value)}
+              placeholder="e.g. A4 Paper"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
             />
           </div>
 
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Unit
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="min-w-0 space-y-2">
+              <label
+                htmlFor="inventory-category"
+                className="text-sm font-medium text-gray-700"
+              >
+                Category
+              </label>
+
+              <input
+                id="inventory-category"
+                type="text"
+                value={form.category}
+                onChange={(e) => onChange("category", e.target.value)}
+                placeholder="e.g. Paper"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
+              />
+            </div>
+
+            <div className="min-w-0 space-y-2">
+              <label
+                htmlFor="inventory-unit"
+                className="text-sm font-medium text-gray-700"
+              >
+                Unit
+              </label>
+
+              <input
+                id="inventory-unit"
+                type="text"
+                value={form.unit}
+                onChange={(e) => onChange("unit", e.target.value)}
+                placeholder="e.g. piece, ream, sheet"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            {isCreate && (
+              <div className="min-w-0 space-y-2">
+                <label
+                  htmlFor="inventory-quantity"
+                  className="text-sm font-medium text-gray-700"
+                >
+                  Opening Quantity
+                </label>
+
+                <input
+                  id="inventory-quantity"
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={form.quantity}
+                  onChange={(e) => onChange("quantity", e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
+                />
+              </div>
+            )}
+
+            <div className="min-w-0 space-y-2">
+              <label
+                htmlFor="inventory-minimum-quantity"
+                className="text-sm font-medium text-gray-700"
+              >
+                Minimum Quantity
+              </label>
+
+              <input
+                id="inventory-minimum-quantity"
+                type="number"
+                min="0"
+                step="1"
+                value={form.minimum_quantity}
+                onChange={(e) => onChange("minimum_quantity", e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
+              />
+            </div>
+
+            <div className="min-w-0 space-y-2">
+              <label
+                htmlFor="inventory-unit-selling-price"
+                className="text-sm font-medium text-gray-700"
+              >
+                Unit Selling Price
+              </label>
+
+              <input
+                id="inventory-unit-selling-price"
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.unit_selling_price}
+                onChange={(e) => onChange("unit_selling_price", e.target.value)}
+                placeholder="0.00"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <label
+              htmlFor="inventory-description"
+              className="text-sm font-medium text-gray-700"
+            >
+              Description
             </label>
 
-            <input
-              value={form.unit}
-              onChange={(event) => onChange("unit", event.target.value)}
-              placeholder="e.g. reams"
-              className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-gray-400"
+            <textarea
+              id="inventory-description"
+              value={form.description}
+              onChange={(e) => onChange("description", e.target.value)}
+              placeholder="Optional description"
+              rows={4}
+              className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
             />
           </div>
         </div>
 
-        {isCreate && (
-          <div>
-            <label className="mb-1.5 block text-sm font-medium text-gray-700">
-              Opening Quantity
-            </label>
+        <div className="mt-6 flex flex-col-reverse gap-3 border-t pt-5 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+          >
+            Cancel
+          </button>
 
-            <input
-              type="number"
-              min="0"
-              value={form.quantity}
-              onChange={(event) => onChange("quantity", event.target.value)}
-              className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-gray-400"
-            />
-          </div>
-        )}
-
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
-            Minimum Quantity
-          </label>
-
-          <input
-            type="number"
-            min="0"
-            value={form.minimum_quantity}
-            onChange={(event) =>
-              onChange("minimum_quantity", event.target.value)
-            }
-            className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-gray-400"
-          />
+          <button
+            type="submit"
+            disabled={saving}
+            className="w-full rounded-lg bg-black px-4 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+          >
+            {saving
+              ? isCreate
+                ? "Creating..."
+                : "Saving..."
+              : isCreate
+                ? "Create Item"
+                : "Save Changes"}
+          </button>
         </div>
-
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
-            Description
-          </label>
-
-          <textarea
-            value={form.description}
-            onChange={(event) => onChange("description", event.target.value)}
-            rows={3}
-            placeholder="Optional description"
-            className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-gray-400"
-          />
-        </div>
-      </div>
-
-      <div className="mt-6 flex justify-end gap-3">
-        <button
-          type="button"
-          onClick={onClose}
-          disabled={saving}
-          className="rounded-lg border px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-        >
-          Cancel
-        </button>
-
-        <button
-          type="button"
-          onClick={onSubmit}
-          disabled={saving}
-          className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
-        >
-          {saving && (
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-          )}
-
-          {isCreate ? "Create Item" : "Save Changes"}
-        </button>
-      </div>
+      </form>
     </InventoryModal>
   );
 }

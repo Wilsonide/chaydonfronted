@@ -1,3 +1,5 @@
+export type OrderType = "DESIGN" | "PRINT";
+
 export type OrderStatus =
   | "RECEIVED"
   | "REVIEWING"
@@ -26,18 +28,26 @@ export interface Order {
   id: string;
   customer_id: string;
   customer: OrderCustomer;
+
+  order_type: OrderType;
+
   title: string;
   description: string | null;
   status: OrderStatus;
   total_amount: number;
   due_date: string | null;
+
   files: OrderFile[];
+
   created_at: string;
   updated_at: string;
 }
 
 export interface OrderCreatePayload {
   customer_id: string;
+
+  order_type?: OrderType;
+
   title: string;
   description?: string;
   total_amount: number;
@@ -47,6 +57,9 @@ export interface OrderCreatePayload {
 export interface OrderUpdatePayload {
   title?: string;
   description?: string;
+
+  order_type?: OrderType;
+
   status?: OrderStatus;
   total_amount?: number;
   due_date?: string;
@@ -59,5 +72,6 @@ export interface OrderListResponse {
     page: number;
     limit: number;
     pages?: number;
+    total_pages?: number;
   };
 }

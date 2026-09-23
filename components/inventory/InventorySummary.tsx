@@ -1,81 +1,64 @@
 "use client";
 
-import { AlertTriangle, Package, SlidersHorizontal } from "lucide-react";
-
-interface InventoryDashboard {
-  total_items: number;
-  total_stock_units: number;
-  low_stock_items: number;
-  categories: number;
-}
-
 interface InventorySummaryProps {
-  dashboard: InventoryDashboard;
+  totalItems: number;
+  lowStockItems: number;
+  totalQuantity: number;
+  totalValue: number;
 }
 
-interface SummaryCardProps {
-  title: string;
-  value: number;
-  icon: React.ReactNode;
-  warning?: boolean;
+function formatNumber(value: number) {
+  return Number(value || 0).toLocaleString("en-NG");
 }
 
-function SummaryCard({
-  title,
-  value,
-  icon,
-  warning = false,
-}: SummaryCardProps) {
+function formatCurrency(value: number) {
+  return `₦${Number(value || 0).toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+export default function InventorySummary({
+  totalItems,
+  lowStockItems,
+  totalQuantity,
+  totalValue,
+}: InventorySummaryProps) {
+  const cards = [
+    {
+      label: "Total Items",
+      value: formatNumber(totalItems),
+    },
+    {
+      label: "Low Stock",
+      value: formatNumber(lowStockItems),
+    },
+    {
+      label: "Total Quantity",
+      value: formatNumber(totalQuantity),
+    },
+    {
+      label: "Inventory Value",
+      value: formatCurrency(totalValue),
+    },
+  ];
+
   return (
-    <div className="rounded-xl border bg-white p-5">
-      <div className="flex items-center justify-between">
-        <div className="text-sm text-gray-500">{title}</div>
-
+    <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      {cards.map((card) => (
         <div
-          className={
-            warning
-              ? "rounded-lg bg-red-50 p-2 text-red-600"
-              : "rounded-lg bg-gray-100 p-2 text-gray-600"
-          }
+          key={card.label}
+          className="min-w-0 rounded-xl border bg-white p-5 shadow-sm"
         >
-          {icon}
+          <p className="truncate text-sm font-medium text-gray-500">
+            {card.label}
+          </p>
+
+          <p className="mt-2 truncate text-2xl font-bold text-gray-900">
+            {card.value}
+          </p>
         </div>
-      </div>
-
-      <p className="mt-4 text-2xl font-bold text-gray-900">
-        {value.toLocaleString()}
-      </p>
-    </div>
-  );
-}
-
-export default function InventorySummary({ dashboard }: InventorySummaryProps) {
-  return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <SummaryCard
-        title="Total Items"
-        value={dashboard.total_items}
-        icon={<Package className="h-5 w-5" />}
-      />
-
-      <SummaryCard
-        title="Stock Units"
-        value={dashboard.total_stock_units}
-        icon={<Package className="h-5 w-5" />}
-      />
-
-      <SummaryCard
-        title="Low Stock"
-        value={dashboard.low_stock_items}
-        icon={<AlertTriangle className="h-5 w-5" />}
-        warning={dashboard.low_stock_items > 0}
-      />
-
-      <SummaryCard
-        title="Categories"
-        value={dashboard.categories}
-        icon={<SlidersHorizontal className="h-5 w-5" />}
-      />
+      ))}
     </div>
   );
 }

@@ -19,6 +19,7 @@ class TaskService {
     search?: string,
     status?: string,
     priority?: string,
+    orderType?: string,
   ) {
     return api.get<TaskListResponse>("/tasks", {
       params: {
@@ -27,6 +28,7 @@ class TaskService {
         ...(search ? { search } : {}),
         ...(status ? { status } : {}),
         ...(priority ? { priority } : {}),
+        ...(orderType ? { order_type: orderType } : {}),
       },
     });
   }

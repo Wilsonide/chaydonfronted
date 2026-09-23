@@ -1,22 +1,20 @@
 "use client";
 
-import { ArrowDown, ArrowUp } from "lucide-react";
-
-import { InventoryItem } from "@/app/services/inventory.service";
-
 import InventoryModal from "./InventoryModal";
 
 export interface MovementForm {
   quantity: string;
+  unit_selling_price: string;
   reason: string;
 }
 
 interface StockMovementModalProps {
   open: boolean;
-  item: InventoryItem | null;
-  type: "STOCK_IN" | "STOCK_OUT";
+  movementType: "STOCK_IN" | "STOCK_OUT";
   form: MovementForm;
   saving: boolean;
+  currentUnitSellingPrice?: number | null;
+  unit?: string | null;
   onClose: () => void;
   onSubmit: () => void;
   onChange: (field: keyof MovementForm, value: string) => void;
@@ -24,92 +22,148 @@ interface StockMovementModalProps {
 
 export default function StockMovementModal({
   open,
-  item,
-  type,
+  movementType,
   form,
   saving,
+  currentUnitSellingPrice,
+  unit,
   onClose,
   onSubmit,
   onChange,
 }: StockMovementModalProps) {
-  if (!open || !item) {
-    return null;
-  }
+  if (!open) return null;
 
-  const isStockIn = type === "STOCK_IN";
+  const isStockIn = movementType === "STOCK_IN";
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!saving) {
+      onSubmit();
+    }
+  };
 
   return (
     <InventoryModal
-      title={isStockIn ? "Stock In" : "Stock Out"}
+      title={isStockIn ? "Add Stock" : "Remove Stock"}
       onClose={onClose}
     >
-      <div className="space-y-4">
-        <div className="rounded-lg bg-gray-50 p-4">
-          <p className="text-sm text-gray-500">Item</p>
+      <form onSubmit={handleSubmit}>
+        <div className="space-y-5">
+          <div className="space-y-2">
+            <label
+              htmlFor="movement-quantity"
+              className="text-sm font-medium text-gray-700"
+            >
+              Quantity
+              {unit ? ` (${unit})` : ""}
+            </label>
 
-          <p className="font-semibold text-gray-900">{item.name}</p>
+            <input
+              id="movement-quantity"
+              type="number"
+              min="1"
+              step="1"
+              value={form.quantity}
+              onChange={(e) => onChange("quantity", e.target.value)}
+              placeholder="Enter quantity"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
+            />
+          </div>
 
-          <p className="mt-1 text-sm text-gray-500">
-            Current stock: {item.quantity} {item.unit}
-          </p>
-        </div>
+          {isStockIn && (
+            <div className="space-y-2">
+              <label
+                htmlFor="movement-unit-selling-price"
+                className="text-sm font-medium text-gray-700"
+              >
+                Unit Selling Price
+              </label>
 
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
-            Quantity
-          </label>
+              <input
+                id="movement-unit-selling-price"
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.unit_selling_price}
+                onChange={(e) => onChange("unit_selling_price", e.target.value)}
+                placeholder={
+                  currentUnitSellingPrice !== undefined &&
+                  currentUnitSellingPrice !== null
+                    ? currentUnitSellingPrice.toFixed(2)
+                    : "Enter selling price"
+                }
+                className="w-full rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
+              />
 
-          <input
-            type="number"
-            min="1"
-            value={form.quantity}
-            onChange={(event) => onChange("quantity", event.target.value)}
-            className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-gray-400"
-          />
-        </div>
+              {currentUnitSellingPrice !== undefined &&
+                currentUnitSellingPrice !== null && (
+                  <p className="text-xs text-gray-500">
+                    Current price:{" "}
+                    <span className="font-medium text-gray-700">
+                      ₦
+                      {currentUnitSellingPrice.toLocaleString("en-NG", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </span>
+                  </p>
+                )}
 
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-gray-700">
-            Reason
-          </label>
-
-          <textarea
-            value={form.reason}
-            onChange={(event) => onChange("reason", event.target.value)}
-            rows={3}
-            placeholder="Why is the stock moving?"
-            className="w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-gray-400"
-          />
-        </div>
-      </div>
-
-      <div className="mt-6 flex justify-end gap-3">
-        <button
-          type="button"
-          onClick={onClose}
-          disabled={saving}
-          className="rounded-lg border px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-        >
-          Cancel
-        </button>
-
-        <button
-          type="button"
-          onClick={onSubmit}
-          disabled={saving}
-          className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-medium text-white hover:bg-gray-800 disabled:opacity-50"
-        >
-          {saving ? (
-            <span className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-          ) : isStockIn ? (
-            <ArrowUp className="h-4 w-4" />
-          ) : (
-            <ArrowDown className="h-4 w-4" />
+              <p className="text-xs text-gray-500">
+                Leave blank to keep the current unit selling price.
+              </p>
+            </div>
           )}
 
-          {isStockIn ? "Add Stock" : "Remove Stock"}
-        </button>
-      </div>
+          <div className="space-y-2">
+            <label
+              htmlFor="movement-reason"
+              className="text-sm font-medium text-gray-700"
+            >
+              Reason
+            </label>
+
+            <textarea
+              id="movement-reason"
+              value={form.reason}
+              onChange={(e) => onChange("reason", e.target.value)}
+              placeholder={
+                isStockIn
+                  ? "e.g. New stock received"
+                  : "e.g. Used for customer order"
+              }
+              rows={4}
+              className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2.5 text-sm outline-none transition focus:border-gray-500 focus:ring-2 focus:ring-gray-200"
+            />
+          </div>
+        </div>
+
+        <div className="mt-6 flex flex-col-reverse gap-3 border-t pt-5 sm:flex-row sm:justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={saving}
+            className="w-full rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+          >
+            Cancel
+          </button>
+
+          <button
+            type="submit"
+            disabled={saving}
+            className="w-full rounded-lg bg-black px-4 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+          >
+            {saving
+              ? isStockIn
+                ? "Adding..."
+                : "Removing..."
+              : isStockIn
+                ? "Add Stock"
+                : "Remove Stock"}
+          </button>
+        </div>
+      </form>
     </InventoryModal>
   );
 }

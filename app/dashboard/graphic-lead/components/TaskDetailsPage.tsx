@@ -1,11 +1,14 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import Link from "next/link";
+
 import {
   ArrowLeft,
   CalendarDays,
   CheckCircle2,
+  CircleDollarSign,
   Clock3,
   FileText,
   Loader2,
@@ -15,10 +18,13 @@ import {
   RotateCcw,
   UserRound,
 } from "lucide-react";
+
 import { toast } from "sonner";
 
 import { Button, buttonVariants } from "@/components/ui/button";
+
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+
 import { Textarea } from "@/components/ui/textarea";
 
 import taskService from "@/app/services/taskService";
@@ -47,6 +53,21 @@ function formatDateOnly(value: string) {
   }).format(new Date(value));
 }
 
+function formatCurrency(value: string | number) {
+  const amount = Number(value);
+
+  if (!Number.isFinite(amount)) {
+    return "₦0.00";
+  }
+
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
 function isOverdue(task: Task) {
   if (!task.deadline || task.status === "APPROVED") {
     return false;
@@ -58,10 +79,8 @@ function isOverdue(task: Task) {
 export default function TaskDetailsPage({ taskId }: TaskDetailsPageProps) {
   const [task, setTask] = useState<Task | null>(null);
   const [comments, setComments] = useState<TaskComment[]>([]);
-
   const [loading, setLoading] = useState(true);
   const [commentsLoading, setCommentsLoading] = useState(true);
-
   const [message, setMessage] = useState("");
   const [sendingComment, setSendingComment] = useState(false);
 
@@ -70,9 +89,11 @@ export default function TaskDetailsPage({ taskId }: TaskDetailsPageProps) {
 
     try {
       const response = await taskService.getTask(taskId);
+
       setTask(response.data);
     } catch (error) {
       console.error("Failed to load task:", error);
+
       toast.error("Failed to load task.");
     } finally {
       setLoading(false);
@@ -84,9 +105,11 @@ export default function TaskDetailsPage({ taskId }: TaskDetailsPageProps) {
 
     try {
       const response = await taskService.getComments(taskId);
+
       setComments(response.data);
     } catch (error) {
       console.error("Failed to load comments:", error);
+
       toast.error("Failed to load task comments.");
     } finally {
       setCommentsLoading(false);
@@ -118,6 +141,7 @@ export default function TaskDetailsPage({ taskId }: TaskDetailsPageProps) {
       toast.success("Comment added.");
     } catch (error) {
       console.error("Failed to add comment:", error);
+
       toast.error("Failed to add comment.");
     } finally {
       setSendingComment(false);
@@ -169,7 +193,10 @@ export default function TaskDetailsPage({ taskId }: TaskDetailsPageProps) {
       <div className="space-y-4">
         <Link
           href="/dashboard/graphic-lead/tasks"
-          className={buttonVariants({ variant: "ghost", className: "-ml-3" })}
+          className={buttonVariants({
+            variant: "ghost",
+            className: "-ml-3",
+          })}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to tasks
@@ -373,6 +400,7 @@ export default function TaskDetailsPage({ taskId }: TaskDetailsPageProps) {
                             className="mt-3 inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition hover:bg-muted"
                           >
                             <Paperclip className="h-4 w-4" />
+
                             {comment.attachment_name || "View attachment"}
                           </a>
                         )}
@@ -444,6 +472,28 @@ export default function TaskDetailsPage({ taskId }: TaskDetailsPageProps) {
               </div>
             </CardContent>
           </Card>
+
+          {/* Designer cost */}
+          {task.status === "APPROVED" && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <CircleDollarSign className="h-4 w-4" />
+                  Designer Cost
+                </CardTitle>
+              </CardHeader>
+
+              <CardContent>
+                <p className="text-2xl font-semibold tracking-tight">
+                  {formatCurrency(task.designer_charge)}
+                </p>
+
+                <p className="mt-2 text-xs leading-5 text-muted-foreground">
+                  Designer charge recorded when this task was approved.
+                </p>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Deadline */}
           <Card>

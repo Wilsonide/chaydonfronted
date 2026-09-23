@@ -85,7 +85,13 @@ export default function ProductionManagement({
     try {
       setOrdersLoading(true);
 
-      const response = await orderService.getOrders(1, 100);
+      const response = await orderService.getOrders(
+        1,
+        100,
+        undefined,
+        undefined,
+        "DESIGN",
+      );
 
       setOrders(response.data.data);
       console.log(response.data.data);

@@ -1,101 +1,162 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Loader2, SlidersHorizontal } from "lucide-react";
-
-import { InventoryItem, StockMovement } from "@/app/services/inventory.service";
-
 import InventoryModal from "./InventoryModal";
+
+interface StockMovement {
+  id: string;
+  item_id: string;
+  quantity: number;
+  movement_type: "STOCK_IN" | "STOCK_OUT" | "ADJUSTMENT";
+  unit_selling_price: number;
+  total_selling_price: number;
+  reason: string | null;
+  recorded_by: string;
+  production_folder_id: string | null;
+  created_at: string;
+}
 
 interface StockHistoryModalProps {
   open: boolean;
-  item: InventoryItem | null;
+  itemName: string;
   movements: StockMovement[];
   loading: boolean;
   onClose: () => void;
 }
 
-function MovementBadge({ type }: { type: StockMovement["movement_type"] }) {
-  if (type === "STOCK_IN") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-medium text-green-600">
-        <ArrowUp className="h-3 w-3" />
-        Stock In
-      </span>
-    );
+function formatCurrency(value: number) {
+  return `₦${Number(value || 0).toLocaleString("en-NG", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+function formatDate(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
   }
 
-  if (type === "STOCK_OUT") {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600">
-        <ArrowDown className="h-3 w-3" />
-        Stock Out
-      </span>
-    );
-  }
+  return date.toLocaleString("en-NG", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+}
 
-  return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-yellow-50 px-2.5 py-1 text-xs font-medium text-yellow-600">
-      <SlidersHorizontal className="h-3 w-3" />
-      Adjustment
-    </span>
-  );
+function getMovementLabel(type: StockMovement["movement_type"]) {
+  switch (type) {
+    case "STOCK_IN":
+      return "Stock In";
+
+    case "STOCK_OUT":
+      return "Stock Out";
+
+    case "ADJUSTMENT":
+      return "Adjustment";
+
+    default:
+      return type;
+  }
+}
+
+function getMovementClasses(type: StockMovement["movement_type"]) {
+  switch (type) {
+    case "STOCK_IN":
+      return "bg-green-100 text-green-700";
+
+    case "STOCK_OUT":
+      return "bg-red-100 text-red-700";
+
+    case "ADJUSTMENT":
+      return "bg-blue-100 text-blue-700";
+
+    default:
+      return "bg-gray-100 text-gray-700";
+  }
 }
 
 export default function StockHistoryModal({
   open,
-  item,
+  itemName,
   movements,
   loading,
   onClose,
 }: StockHistoryModalProps) {
-  if (!open || !item) {
-    return null;
-  }
+  if (!open) return null;
 
   return (
     <InventoryModal
-      title={`Stock History — ${item.name}`}
+      title={`Stock History — ${itemName}`}
       onClose={onClose}
       wide
     >
       {loading ? (
-        <div className="py-12 text-center">
-          <Loader2 className="mx-auto h-6 w-6 animate-spin text-gray-400" />
+        <div className="flex min-h-[220px] items-center justify-center">
+          <p className="text-sm text-gray-500">Loading stock history...</p>
         </div>
       ) : movements.length === 0 ? (
-        <div className="py-12 text-center text-sm text-gray-500">
-          No stock movements recorded.
+        <div className="flex min-h-[220px] items-center justify-center text-center">
+          <div>
+            <p className="font-medium text-gray-900">No stock movements</p>
+
+            <p className="mt-1 text-sm text-gray-500">
+              There is no movement history for this item yet.
+            </p>
+          </div>
         </div>
       ) : (
-        <div className="max-h-[60vh] overflow-y-auto">
-          <div className="divide-y">
-            {movements.map((movement) => (
-              <div
-                key={movement.id}
-                className="flex items-center justify-between gap-4 py-4"
-              >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <MovementBadge type={movement.movement_type} />
+        <div className="divide-y">
+          {movements.map((movement) => (
+            <div
+              key={movement.id}
+              className="flex flex-col gap-4 py-5 first:pt-0 sm:flex-row sm:items-start sm:justify-between"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={[
+                      "inline-flex shrink-0 rounded-full px-2.5 py-1 text-xs font-medium",
+                      getMovementClasses(movement.movement_type),
+                    ].join(" ")}
+                  >
+                    {getMovementLabel(movement.movement_type)}
+                  </span>
 
-                    <span className="font-medium text-gray-900">
-                      {movement.quantity} {item.unit}
+                  <span className="text-sm font-semibold text-gray-900">
+                    {movement.quantity}
+                  </span>
+                </div>
+
+                {movement.reason && (
+                  <p className="mt-2 break-words text-sm text-gray-600">
+                    {movement.reason}
+                  </p>
+                )}
+
+                <div className="mt-3 grid grid-cols-1 gap-2 text-xs text-gray-500 sm:grid-cols-2">
+                  <div>
+                    <span>Unit selling price: </span>
+
+                    <span className="font-semibold text-gray-700">
+                      {formatCurrency(movement.unit_selling_price)}
                     </span>
                   </div>
 
-                  {movement.reason && (
-                    <p className="mt-1 text-sm text-gray-500">
-                      {movement.reason}
-                    </p>
-                  )}
-                </div>
+                  <div>
+                    <span>Total selling price: </span>
 
-                <span className="whitespace-nowrap text-xs text-gray-400">
-                  {new Date(movement.created_at).toLocaleString()}
-                </span>
+                    <span className="font-semibold text-gray-700">
+                      {formatCurrency(movement.total_selling_price)}
+                    </span>
+                  </div>
+                </div>
               </div>
-            ))}
-          </div>
+
+              <div className="shrink-0 text-xs text-gray-500 sm:text-right">
+                {formatDate(movement.created_at)}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </InventoryModal>

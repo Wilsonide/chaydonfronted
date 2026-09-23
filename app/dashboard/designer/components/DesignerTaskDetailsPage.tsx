@@ -223,7 +223,7 @@ export default function DesignerTaskDetailsPage({
 
       <div className="space-y-4">
         <Link
-          href="/dashboard/graphic-designer/tasks"
+          href="/dashboard/designer/tasks"
           className={buttonVariants({ variant: "ghost", className: "-ml-3" })}
         >
           <ArrowLeft className="mr-2 h-4 w-4" />

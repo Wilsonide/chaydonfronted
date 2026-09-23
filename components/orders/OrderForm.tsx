@@ -6,14 +6,15 @@ import {
   CalendarDays,
   Check,
   ChevronRight,
+  FilePenLine,
   Loader2,
+  Printer,
   Upload,
 } from "lucide-react";
 
 import { toast } from "sonner";
 
 import { Customer } from "@/components/customers/types";
-
 import orderService from "@/app/services/order.service";
 
 import { Button } from "@/components/ui/button";
@@ -30,18 +31,18 @@ interface OrderFormProps {
 }
 
 type OrderStep = "details" | "files";
+type OrderType = "DESIGN" | "PRINT";
 
 export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
   const [customer, setCustomer] = useState<Customer | null>(null);
+  const [orderType, setOrderType] = useState<OrderType>("DESIGN");
+
   const [dueDate, setDueDate] = useState("");
   const [title, setTitle] = useState("");
-
   const [description, setDescription] = useState("");
-
   const [amount, setAmount] = useState("");
 
   const [creating, setCreating] = useState(false);
-
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
 
   const [step, setStep] = useState<OrderStep>("details");
@@ -71,6 +72,7 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
 
       const response = await orderService.createOrder({
         customer_id: customer.id,
+        order_type: orderType,
         title: title.trim(),
         description: description.trim() || undefined,
         total_amount: numericAmount,
@@ -78,7 +80,6 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
       });
 
       setCreatedOrderId(response.data.id);
-
       setStep("files");
 
       toast.success("Order created successfully");
@@ -126,6 +127,16 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
               <p className="mt-1 text-sm text-muted-foreground">
                 {customer?.name}
               </p>
+
+              <div className="mt-3 inline-flex items-center gap-2 rounded-full border bg-background px-3 py-1.5 text-xs font-medium">
+                {orderType === "DESIGN" ? (
+                  <FilePenLine className="h-3.5 w-3.5" />
+                ) : (
+                  <Printer className="h-3.5 w-3.5" />
+                )}
+
+                {orderType === "DESIGN" ? "Design Order" : "Print Order"}
+              </div>
             </div>
 
             <div className="rounded-lg bg-background px-3 py-2 text-right shadow-sm">
@@ -218,6 +229,98 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
         <CustomerSelector value={customer} onChange={setCustomer} />
       </div>
 
+      {/* Order type */}
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-base font-semibold">Order type</h3>
+
+          <p className="text-sm text-muted-foreground">
+            Choose whether this order requires design work or goes directly to
+            printing.
+          </p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          {/* Design order */}
+          <button
+            type="button"
+            disabled={creating}
+            onClick={() => setOrderType("DESIGN")}
+            className={`rounded-xl border p-4 text-left transition ${
+              orderType === "DESIGN"
+                ? "border-primary bg-primary/5 ring-1 ring-primary"
+                : "hover:bg-muted/50"
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <div
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                  orderType === "DESIGN"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                <FilePenLine className="h-5 w-5" />
+              </div>
+
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold">Design Order</p>
+
+                  {orderType === "DESIGN" && (
+                    <Check className="h-4 w-4 text-primary" />
+                  )}
+                </div>
+
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Requires graphic design work before the order can proceed to
+                  printing.
+                </p>
+              </div>
+            </div>
+          </button>
+
+          {/* Print order */}
+          <button
+            type="button"
+            disabled={creating}
+            onClick={() => setOrderType("PRINT")}
+            className={`rounded-xl border p-4 text-left transition ${
+              orderType === "PRINT"
+                ? "border-primary bg-primary/5 ring-1 ring-primary"
+                : "hover:bg-muted/50"
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <div
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                  orderType === "PRINT"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                <Printer className="h-5 w-5" />
+              </div>
+
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold">Print Order</p>
+
+                  {orderType === "PRINT" && (
+                    <Check className="h-4 w-4 text-primary" />
+                  )}
+                </div>
+
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                  Goes directly to print production without the designer/task
+                  workflow.
+                </p>
+              </div>
+            </div>
+          </button>
+        </div>
+      </div>
+
       {/* Order details */}
       <div className="space-y-5">
         <div>
@@ -247,7 +350,11 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
             id="order-description"
             value={description}
             onChange={(event) => setDescription(event.target.value)}
-            placeholder="Describe what the customer needs..."
+            placeholder={
+              orderType === "DESIGN"
+                ? "Describe what the customer needs and any design requirements..."
+                : "Describe the print specifications, quantity, size, paper/material, finishing, etc..."
+            }
             rows={5}
             disabled={creating}
           />
@@ -268,6 +375,8 @@ export function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
           />
         </div>
       </div>
+
+      {/* Due date */}
       <div className="space-y-2">
         <Label htmlFor="order-due-date">Due Date</Label>
 

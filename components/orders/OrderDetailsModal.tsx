@@ -1,6 +1,14 @@
 "use client";
 
-import { Download, ExternalLink, FileImage, FileText } from "lucide-react";
+import {
+  Download,
+  ExternalLink,
+  FileImage,
+  FilePenLine,
+  FileText,
+  Printer,
+} from "lucide-react";
+
 import { toast } from "sonner";
 
 import { Order } from "./types";
@@ -53,6 +61,7 @@ export function OrderDetailsModal({
       link.download = file.file_name;
 
       document.body.appendChild(link);
+
       link.click();
       link.remove();
 
@@ -66,6 +75,10 @@ export function OrderDetailsModal({
     }
   };
 
+  const isPrintOrder = order.order_type === "PRINT";
+
+  const isDesignOrder = order.order_type === "DESIGN";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
@@ -74,17 +87,58 @@ export function OrderDetailsModal({
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Order overview */}
+          <div className="rounded-xl border bg-muted/20 p-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Order
+                </p>
+
+                <h3 className="mt-1 text-lg font-semibold">{order.title}</h3>
+
+                <p className="mt-1 text-xs text-muted-foreground">
+                  #{order.id.slice(0, 8)}
+                </p>
+              </div>
+
+              {/* Order type */}
+              <div
+                className={`inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium ${
+                  isPrintOrder
+                    ? "border-blue-200 bg-blue-50 text-blue-700"
+                    : "border-purple-200 bg-purple-50 text-purple-700"
+                }`}
+              >
+                {isPrintOrder ? (
+                  <Printer className="h-3.5 w-3.5" />
+                ) : (
+                  <FilePenLine className="h-3.5 w-3.5" />
+                )}
+
+                {isPrintOrder ? "Print Order" : "Design Order"}
+              </div>
+            </div>
+          </div>
+
+          {/* Order information */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
-              <p className="text-sm text-muted-foreground">Order</p>
+              <p className="text-sm text-muted-foreground">Customer</p>
 
-              <p className="font-medium">{order.title}</p>
+              <p className="font-medium">{order.customer.name}</p>
+
+              <p className="mt-1 text-xs text-muted-foreground">
+                {order.customer.phone}
+              </p>
             </div>
 
             <div>
               <p className="text-sm text-muted-foreground">Status</p>
 
-              <OrderStatusBadge status={order.status} />
+              <div className="mt-1">
+                <OrderStatusBadge status={order.status} />
+              </div>
             </div>
 
             <div>
@@ -115,8 +169,19 @@ export function OrderDetailsModal({
                 {new Date(order.created_at).toLocaleString("en-NG")}
               </p>
             </div>
+
+            <div>
+              <p className="text-sm text-muted-foreground">Workflow</p>
+
+              <p className="font-medium">
+                {isDesignOrder
+                  ? "Design & Production"
+                  : "Direct Print Production"}
+              </p>
+            </div>
           </div>
 
+          {/* Requirements */}
           <div>
             <p className="text-sm text-muted-foreground">Requirements</p>
 
@@ -125,6 +190,40 @@ export function OrderDetailsModal({
             </p>
           </div>
 
+          {/* Workflow information */}
+          <div className="rounded-xl border p-4">
+            <div className="flex items-start gap-3">
+              <div className="rounded-lg bg-muted p-2">
+                {isPrintOrder ? (
+                  <Printer className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <FilePenLine className="h-4 w-4 text-muted-foreground" />
+                )}
+              </div>
+
+              <div>
+                <p className="text-sm font-medium">
+                  {isPrintOrder ? "Print workflow" : "Design workflow"}
+                </p>
+
+                {isPrintOrder ? (
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    This order bypasses the designer and production-folder
+                    workflow. Its materials can be configured and consumed
+                    directly from inventory.
+                  </p>
+                ) : (
+                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                    This order follows the design workflow, including a
+                    production folder, task assignment, design review, and
+                    approval before printing.
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Reference files */}
           <div>
             <p className="mb-2 text-sm text-muted-foreground">
               Reference Files

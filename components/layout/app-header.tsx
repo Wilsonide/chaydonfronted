@@ -30,7 +30,7 @@ export default function AppHeader() {
         <MobileSidebar />
 
         <div>
-          <h2 className="font-semibold">Chaydon Prints</h2>
+          <h2 className="font-semibold">ChaydonMedia</h2>
 
           {user && <p className="text-xs text-gray-500">{roleLabel}</p>}
         </div>

@@ -50,13 +50,11 @@ export interface TaskProductionFolder {
 
 export interface Task {
   id: string;
-
   production_folder_id: string;
-
   assigned_by: string;
   assigned_to: string | null;
 
-  /*
+  /**
    * Enriched backend relationships
    */
   production_folder: TaskProductionFolder;
@@ -64,11 +62,19 @@ export interface Task {
 
   title: string;
   description: string | null;
-
   priority: TaskPriority;
   status: TaskStatus;
-
   deadline: string | null;
+
+  /**
+   * Designer charge recorded when the
+   * Graphic Lead approves the task.
+   *
+   * Backend Decimal values are serialized
+   * as strings.
+   */
+  designer_charge: string;
+
   created_at: string;
 }
 
@@ -134,6 +140,15 @@ export interface TaskAssignmentPayload {
 export interface TaskReviewPayload {
   approve: boolean;
   message?: string | null;
+
+  /**
+   * Required when approving a task.
+   *
+   * Use a string so decimal values such as
+   * "1500.00" are sent without JavaScript
+   * floating-point issues.
+   */
+  designer_charge: string;
 }
 
 /* =========================================================
@@ -151,18 +166,13 @@ export interface TaskCommentUser {
 export interface TaskComment {
   id: string;
   user_id: string;
-
   user: TaskCommentUser;
-
   message: string | null;
-
   attachment_url: string | null;
   attachment_name: string | null;
   attachment_type: string | null;
-
   is_revision_request: boolean;
   is_approval: boolean;
-
   created_at: string;
 }
 

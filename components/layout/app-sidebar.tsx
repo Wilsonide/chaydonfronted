@@ -30,7 +30,7 @@ export default function AppSidebar({
       )}
     >
       <div className="h-16 flex items-center px-6 border-b shrink-0">
-        <h1 className="font-bold text-xl text-blue-600">ChayDon</h1>
+        <h1 className="font-bold text-xl text-blue-600">ChayDonMedia</h1>
       </div>
 
       <nav className="flex-1 p-3 space-y-1 overflow-y-auto">

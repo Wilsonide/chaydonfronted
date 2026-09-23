@@ -1,6 +1,6 @@
 "use client";
 
-import { ReactNode } from "react";
+import type { ReactNode } from "react";
 import { X } from "lucide-react";
 
 interface InventoryModalProps {
@@ -17,25 +17,37 @@ export default function InventoryModal({
   wide = false,
 }: InventoryModalProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div
-        className={`w-full ${
-          wide ? "max-w-3xl" : "max-w-lg"
-        } max-h-[90vh] overflow-y-auto rounded-xl bg-white shadow-xl`}
-      >
-        <div className="flex items-center justify-between border-b px-6 py-4">
-          <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+    <div className="fixed inset-0 z-[100] overflow-y-auto bg-black/40 p-4 sm:p-6">
+      <div className="flex min-h-full items-center justify-center">
+        <div
+          className={[
+            "relative flex w-full flex-col overflow-hidden rounded-xl bg-white shadow-2xl",
+            "max-h-[calc(100dvh-2rem)] sm:max-h-[calc(100dvh-3rem)]",
+            wide ? "max-w-3xl" : "max-w-lg",
+          ].join(" ")}
+          role="dialog"
+          aria-modal="true"
+          aria-label={title}
+        >
+          <div className="flex shrink-0 items-center justify-between border-b px-4 py-4 sm:px-6">
+            <h2 className="min-w-0 pr-4 text-lg font-semibold text-gray-900">
+              {title}
+            </h2>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-700"
-          >
-            <X className="h-5 w-5" />
-          </button>
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close modal"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-gray-500 transition hover:bg-gray-100 hover:text-gray-900"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+            {children}
+          </div>
         </div>
-
-        <div className="p-6">{children}</div>
       </div>
     </div>
   );

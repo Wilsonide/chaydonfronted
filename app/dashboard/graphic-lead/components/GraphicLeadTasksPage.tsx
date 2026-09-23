@@ -46,6 +46,7 @@ export default function GraphicLeadTasksPage() {
         search.trim() || undefined,
         status !== "ALL" ? status : undefined,
         priority !== "ALL" ? priority : undefined,
+        "DESIGN",
       );
 
       setTasks(response.data.data);

@@ -9,6 +9,8 @@ import {
   Receipt,
   CreditCard,
   LucideIcon,
+  Printer,
+  BarChart3,
 } from "lucide-react";
 
 export type UserRole =
@@ -30,6 +32,11 @@ export const roleNavigation: Record<
       label: "Dashboard",
       href: "/dashboard/super-admin",
       icon: LayoutDashboard,
+    },
+    {
+      label: "Analytics",
+      href: "/dashboard/super-admin/analytics",
+      icon: BarChart3,
     },
     {
       label: "Customers",
@@ -75,6 +82,11 @@ export const roleNavigation: Record<
       label: "Manage Staffs",
       href: "/dashboard/super-admin/staff-credentials",
       icon: UserPlus,
+    },
+    {
+      label: "Print",
+      href: "/dashboard/super-admin/print",
+      icon: Printer,
     },
   ],
 

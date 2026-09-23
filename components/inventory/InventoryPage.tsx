@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { Plus, Loader2 } from "lucide-react";
-
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import inventoryService, {
+  InventoryDashboard,
   InventoryItem,
   StockMovement,
 } from "@/app/services/inventory.service";
@@ -15,9 +15,13 @@ import InventorySummary from "./InventorySummary";
 import InventorySearch from "./InventorySearch";
 import InventoryTable from "./InventoryTable";
 import InventoryPagination from "./InventoryPagination";
+
 import InventoryFormModal, { InventoryForm } from "./InventoryFormModal";
+
 import StockMovementModal, { MovementForm } from "./StockMovementModal";
+
 import StockAdjustmentModal, { AdjustmentForm } from "./StockAdjustmentModal";
+
 import StockHistoryModal from "./StockHistoryModal";
 
 const emptyInventoryForm: InventoryForm = {
@@ -26,17 +30,27 @@ const emptyInventoryForm: InventoryForm = {
   unit: "",
   quantity: "0",
   minimum_quantity: "0",
+  unit_selling_price: "0",
   description: "",
 };
 
 const emptyMovementForm: MovementForm = {
   quantity: "",
+  unit_selling_price: "",
   reason: "",
 };
 
 const emptyAdjustmentForm: AdjustmentForm = {
   new_quantity: "",
   reason: "",
+};
+
+const emptyDashboard: InventoryDashboard = {
+  total_items: 0,
+  total_stock_units: 0,
+  total_inventory_value: 0,
+  low_stock_items: 0,
+  categories: 0,
 };
 
 interface InventoryPageProps {
@@ -49,34 +63,22 @@ export default function InventoryPage({
   description = "Manage stock, materials and inventory movements.",
 }: InventoryPageProps) {
   const [items, setItems] = useState<InventoryItem[]>([]);
-
   const [total, setTotal] = useState(0);
 
   const [page, setPage] = useState(1);
-
   const [limit] = useState(10);
-
   const [search, setSearch] = useState("");
 
   const [loading, setLoading] = useState(true);
-
   const [saving, setSaving] = useState(false);
 
-  const [dashboard, setDashboard] = useState({
-    total_items: 0,
-    total_stock_units: 0,
-    low_stock_items: 0,
-    categories: 0,
-  });
+  const [dashboard, setDashboard] =
+    useState<InventoryDashboard>(emptyDashboard);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
-
   const [showEditModal, setShowEditModal] = useState(false);
-
   const [showMovementModal, setShowMovementModal] = useState(false);
-
   const [showAdjustmentModal, setShowAdjustmentModal] = useState(false);
-
   const [showHistoryModal, setShowHistoryModal] = useState(false);
 
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
@@ -95,7 +97,6 @@ export default function InventoryPage({
   );
 
   const [movements, setMovements] = useState<StockMovement[]>([]);
-
   const [historyLoading, setHistoryLoading] = useState(false);
 
   /*
@@ -126,22 +127,10 @@ export default function InventoryPage({
 
       const response = await inventoryService.getItems(page, limit, search);
 
-      /*
-       * Your current backend response is expected
-       * to use:
-       *
-       * response.data.data
-       * response.data.meta.total
-       *
-       * because that is what your current page
-       * was using.
-       */
-
       setItems(response.data.data);
       setTotal(response.data.meta.total);
     } catch (error) {
       console.error(error);
-
       toast.error("Failed to load inventory");
     } finally {
       setLoading(false);
@@ -149,11 +138,11 @@ export default function InventoryPage({
   }, [page, limit, search]);
 
   useEffect(() => {
-    Promise.resolve().then(() => loadItems());
+    void Promise.resolve().then(() => loadItems());
   }, [loadItems]);
 
   useEffect(() => {
-    Promise.resolve().then(() => loadDashboard());
+    void Promise.resolve().then(() => loadDashboard());
   }, [loadDashboard]);
 
   /*
@@ -179,6 +168,10 @@ export default function InventoryPage({
       unit: item.unit,
       quantity: String(item.quantity),
       minimum_quantity: String(item.minimum_quantity),
+
+      // Load the current selling price from the backend.
+      unit_selling_price: String(item.unit_selling_price),
+
       description: item.description ?? "",
     });
 
@@ -190,11 +183,13 @@ export default function InventoryPage({
     type: "STOCK_IN" | "STOCK_OUT",
   ) => {
     setSelectedItem(item);
-
     setMovementType(type);
 
     setMovementForm({
-      ...emptyMovementForm,
+      quantity: "",
+      unit_selling_price:
+        type === "STOCK_IN" ? String(item.unit_selling_price) : "",
+      reason: "",
     });
 
     setShowMovementModal(true);
@@ -213,11 +208,8 @@ export default function InventoryPage({
 
   const openHistoryModal = async (item: InventoryItem) => {
     setSelectedItem(item);
-
     setShowHistoryModal(true);
-
     setHistoryLoading(true);
-
     setMovements([]);
 
     try {
@@ -226,7 +218,6 @@ export default function InventoryPage({
       setMovements(response.data.data);
     } catch (error) {
       console.error(error);
-
       toast.error("Failed to load stock history");
     } finally {
       setHistoryLoading(false);
@@ -246,7 +237,25 @@ export default function InventoryPage({
       !inventoryForm.unit.trim()
     ) {
       toast.error("Name, category and unit are required");
+      return;
+    }
 
+    const quantity = Number(inventoryForm.quantity || 0);
+    const minimumQuantity = Number(inventoryForm.minimum_quantity || 0);
+    const unitSellingPrice = Number(inventoryForm.unit_selling_price || 0);
+
+    if (!Number.isInteger(quantity) || quantity < 0) {
+      toast.error("Quantity must be a valid non-negative integer");
+      return;
+    }
+
+    if (!Number.isInteger(minimumQuantity) || minimumQuantity < 0) {
+      toast.error("Minimum quantity must be a valid non-negative integer");
+      return;
+    }
+
+    if (Number.isNaN(unitSellingPrice) || unitSellingPrice < 0) {
+      toast.error("Unit selling price cannot be negative");
       return;
     }
 
@@ -257,19 +266,25 @@ export default function InventoryPage({
         name: inventoryForm.name.trim(),
         category: inventoryForm.category.trim(),
         unit: inventoryForm.unit.trim(),
-        quantity: Number(inventoryForm.quantity || 0),
-        minimum_quantity: Number(inventoryForm.minimum_quantity || 0),
+        quantity,
+        minimum_quantity: minimumQuantity,
+
+        // Backend requires this field.
+        unit_selling_price: unitSellingPrice,
+
         description: inventoryForm.description.trim() || undefined,
       });
 
       toast.success("Inventory item created");
 
       setShowCreateModal(false);
+      setInventoryForm({
+        ...emptyInventoryForm,
+      });
 
       await Promise.all([loadItems(), loadDashboard()]);
     } catch (error) {
       console.error(error);
-
       toast.error("Failed to create inventory item");
     } finally {
       setSaving(false);
@@ -293,7 +308,20 @@ export default function InventoryPage({
       !inventoryForm.unit.trim()
     ) {
       toast.error("Name, category and unit are required");
+      return;
+    }
 
+    const minimumQuantity = Number(inventoryForm.minimum_quantity || 0);
+
+    const unitSellingPrice = Number(inventoryForm.unit_selling_price || 0);
+
+    if (!Number.isInteger(minimumQuantity) || minimumQuantity < 0) {
+      toast.error("Minimum quantity must be a valid non-negative integer");
+      return;
+    }
+
+    if (Number.isNaN(unitSellingPrice) || unitSellingPrice < 0) {
+      toast.error("Unit selling price cannot be negative");
       return;
     }
 
@@ -304,20 +332,22 @@ export default function InventoryPage({
         name: inventoryForm.name.trim(),
         category: inventoryForm.category.trim(),
         unit: inventoryForm.unit.trim(),
-        minimum_quantity: Number(inventoryForm.minimum_quantity || 0),
+        minimum_quantity: minimumQuantity,
+
+        // Backend InventoryUpdate supports this now.
+        unit_selling_price: unitSellingPrice,
+
         description: inventoryForm.description.trim() || undefined,
       });
 
       toast.success("Inventory item updated");
 
       setShowEditModal(false);
-
       setSelectedItem(null);
 
       await Promise.all([loadItems(), loadDashboard()]);
     } catch (error) {
       console.error(error);
-
       toast.error("Failed to update inventory item");
     } finally {
       setSaving(false);
@@ -337,41 +367,86 @@ export default function InventoryPage({
 
     const quantity = Number(movementForm.quantity);
 
-    if (!quantity || quantity <= 0) {
-      toast.error("Quantity must be greater than zero");
-
+    if (!Number.isInteger(quantity) || quantity <= 0) {
+      toast.error("Quantity must be a valid integer greater than zero");
       return;
     }
 
     if (movementType === "STOCK_OUT" && quantity > selectedItem.quantity) {
       toast.error("Insufficient stock");
+      return;
+    }
+
+    /*
+     * STOCK_IN:
+     * The backend allows a new unit selling price to be supplied.
+     *
+     * STOCK_OUT:
+     * The backend uses the item's existing unit selling price,
+     * so we deliberately do not send unit_selling_price.
+     */
+
+    if (movementType === "STOCK_IN") {
+      const unitSellingPrice = Number(movementForm.unit_selling_price || 0);
+
+      if (Number.isNaN(unitSellingPrice) || unitSellingPrice < 0) {
+        toast.error("Unit selling price cannot be negative");
+        return;
+      }
+
+      try {
+        setSaving(true);
+
+        await inventoryService.addStock(selectedItem.id, {
+          quantity,
+          movement_type: "STOCK_IN",
+          reason: movementForm.reason.trim() || undefined,
+          unit_selling_price: unitSellingPrice,
+        });
+
+        toast.success("Stock added successfully");
+
+        setShowMovementModal(false);
+        setSelectedItem(null);
+        setMovementForm({
+          ...emptyMovementForm,
+        });
+
+        await Promise.all([loadItems(), loadDashboard()]);
+      } catch (error) {
+        console.error(error);
+        toast.error("Failed to record stock movement");
+      } finally {
+        setSaving(false);
+      }
 
       return;
     }
+
+    /*
+     * STOCK_OUT
+     */
 
     try {
       setSaving(true);
 
       await inventoryService.addStock(selectedItem.id, {
         quantity,
-        movement_type: movementType,
+        movement_type: "STOCK_OUT",
         reason: movementForm.reason.trim() || undefined,
       });
 
-      toast.success(
-        movementType === "STOCK_IN"
-          ? "Stock added successfully"
-          : "Stock removed successfully",
-      );
+      toast.success("Stock removed successfully");
 
       setShowMovementModal(false);
-
       setSelectedItem(null);
+      setMovementForm({
+        ...emptyMovementForm,
+      });
 
       await Promise.all([loadItems(), loadDashboard()]);
     } catch (error) {
       console.error(error);
-
       toast.error("Failed to record stock movement");
     } finally {
       setSaving(false);
@@ -391,15 +466,13 @@ export default function InventoryPage({
 
     const newQuantity = Number(adjustmentForm.new_quantity);
 
-    if (Number.isNaN(newQuantity) || newQuantity < 0) {
-      toast.error("Quantity cannot be negative");
-
+    if (!Number.isInteger(newQuantity) || newQuantity < 0) {
+      toast.error("Quantity must be a valid non-negative integer");
       return;
     }
 
     if (!adjustmentForm.reason.trim()) {
       toast.error("Adjustment reason is required");
-
       return;
     }
 
@@ -414,13 +487,11 @@ export default function InventoryPage({
       toast.success("Stock adjusted successfully");
 
       setShowAdjustmentModal(false);
-
       setSelectedItem(null);
 
       await Promise.all([loadItems(), loadDashboard()]);
     } catch (error) {
       console.error(error);
-
       toast.error("Failed to adjust stock");
     } finally {
       setSaving(false);
@@ -540,7 +611,6 @@ export default function InventoryPage({
   return (
     <div className="space-y-6">
       {/* Header */}
-
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
@@ -559,15 +629,17 @@ export default function InventoryPage({
       </div>
 
       {/* Summary */}
-
-      <InventorySummary dashboard={dashboard} />
+      <InventorySummary
+        totalItems={dashboard.total_items}
+        lowStockItems={dashboard.low_stock_items}
+        totalQuantity={dashboard.total_stock_units}
+        totalValue={dashboard.total_inventory_value}
+      />
 
       {/* Search */}
-
       <InventorySearch search={search} onSearchChange={handleSearchChange} />
 
       {/* Table */}
-
       <InventoryTable
         items={items}
         loading={loading}
@@ -579,7 +651,6 @@ export default function InventoryPage({
       />
 
       {/* Pagination */}
-
       {!loading && (
         <div className="-mt-6 overflow-hidden rounded-b-xl border border-t-0 bg-white">
           <InventoryPagination
@@ -593,7 +664,6 @@ export default function InventoryPage({
       )}
 
       {/* Create */}
-
       <InventoryFormModal
         mode="create"
         open={showCreateModal}
@@ -605,7 +675,6 @@ export default function InventoryPage({
       />
 
       {/* Edit */}
-
       <InventoryFormModal
         mode="edit"
         open={showEditModal}
@@ -617,35 +686,34 @@ export default function InventoryPage({
       />
 
       {/* Stock Movement */}
-
       <StockMovementModal
         open={showMovementModal}
-        item={selectedItem}
-        type={movementType}
+        movementType={movementType}
         form={movementForm}
         saving={saving}
+        currentUnitSellingPrice={selectedItem?.unit_selling_price ?? null}
+        unit={selectedItem?.unit ?? null}
         onClose={closeMovementModal}
         onSubmit={handleMovement}
         onChange={updateMovementField}
       />
 
       {/* Adjustment */}
-
       <StockAdjustmentModal
         open={showAdjustmentModal}
-        item={selectedItem}
         form={adjustmentForm}
         saving={saving}
+        currentQuantity={selectedItem?.quantity ?? 0}
+        unit={selectedItem?.unit ?? null}
         onClose={closeAdjustmentModal}
         onSubmit={handleAdjustment}
         onChange={updateAdjustmentField}
       />
 
       {/* History */}
-
       <StockHistoryModal
         open={showHistoryModal}
-        item={selectedItem}
+        itemName={selectedItem?.name ?? ""}
         movements={movements}
         loading={historyLoading}
         onClose={closeHistoryModal}

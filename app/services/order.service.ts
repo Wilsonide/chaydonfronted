@@ -8,14 +8,23 @@ import {
   OrderUpdatePayload,
 } from "@/components/orders/types";
 
+export type OrderType = "DESIGN" | "PRINT";
+
 class OrderService {
-  async getOrders(page = 1, limit = 10, search?: string, status?: string) {
+  async getOrders(
+    page = 1,
+    limit = 10,
+    search?: string,
+    status?: string,
+    orderType?: OrderType,
+  ) {
     return api.get<OrderListResponse>("/orders", {
       params: {
         page,
         limit,
         ...(search ? { search } : {}),
         ...(status ? { status } : {}),
+        ...(orderType ? { order_type: orderType } : {}),
       },
     });
   }
