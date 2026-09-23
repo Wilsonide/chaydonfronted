@@ -271,11 +271,17 @@ export default function SuperAdminTasksPage() {
       <TaskDetailsDialog
         open={detailsOpen}
         task={selectedTask}
-        onClose={() => {
-          setDetailsOpen(false);
-          setSelectedTask(null);
+        onOpenChange={(open) => {
+          setDetailsOpen(open);
+
+          if (!open) {
+            setSelectedTask(null);
+          }
         }}
-        onUpdated={loadTasks}
+        onReviewed={async (updatedTask) => {
+          setSelectedTask(updatedTask);
+          await loadTasks();
+        }}
       />
 
       {loading && tasks.length === 0 && (
