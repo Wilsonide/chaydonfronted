@@ -43,26 +43,32 @@ export interface Order {
   updated_at: string;
 }
 
+export interface OrderInventoryItemCreate {
+  inventory_item_id: string;
+  input_quantity: string;
+}
+
 export interface OrderCreatePayload {
   customer_id: string;
-
   order_type?: OrderType;
-
   title: string;
   description?: string;
   total_amount: number;
   due_date?: string;
+  inventory_items?: OrderInventoryItemCreate[];
 }
-
+export interface OrderInventoryItemUpdate {
+  inventory_item_id: string;
+  input_quantity: string;
+}
 export interface OrderUpdatePayload {
   title?: string;
   description?: string;
-
   order_type?: OrderType;
-
   status?: OrderStatus;
   total_amount?: number;
   due_date?: string;
+  inventory_items?: OrderInventoryItemUpdate[];
 }
 
 export interface OrderListResponse {

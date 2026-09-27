@@ -10,7 +10,7 @@ import orderService from "@/app/services/order.service";
 
 import { Order, OrderStatus } from "./types";
 
-import { OrderForm } from "./OrderForm";
+import OrderForm from "./OrderForm";
 import { OrderEditForm } from "./OrderEditForm";
 import { OrderTable } from "./OrderTable";
 import { OrderDetailsModal } from "./OrderDetailsModal";
