@@ -73,7 +73,6 @@ export interface Task {
    * Backend Decimal values are serialized
    * as strings.
    */
-  designer_charge: string;
 
   created_at: string;
 }
@@ -148,7 +147,7 @@ export interface TaskReviewPayload {
    * "1500.00" are sent without JavaScript
    * floating-point issues.
    */
-  designer_charge: string;
+  designer_charge?: string;
 }
 
 /* =========================================================

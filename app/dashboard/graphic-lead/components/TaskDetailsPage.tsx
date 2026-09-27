@@ -8,7 +8,6 @@ import {
   ArrowLeft,
   CalendarDays,
   CheckCircle2,
-  CircleDollarSign,
   Clock3,
   FileText,
   Loader2,
@@ -53,21 +52,6 @@ function formatDateOnly(value: string) {
   }).format(new Date(value));
 }
 
-function formatCurrency(value: string | number) {
-  const amount = Number(value);
-
-  if (!Number.isFinite(amount)) {
-    return "₦0.00";
-  }
-
-  return new Intl.NumberFormat("en-NG", {
-    style: "currency",
-    currency: "NGN",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
-
 function isOverdue(task: Task) {
   if (!task.deadline || task.status === "APPROVED") {
     return false;
@@ -89,11 +73,9 @@ export default function TaskDetailsPage({ taskId }: TaskDetailsPageProps) {
 
     try {
       const response = await taskService.getTask(taskId);
-
       setTask(response.data);
     } catch (error) {
       console.error("Failed to load task:", error);
-
       toast.error("Failed to load task.");
     } finally {
       setLoading(false);
@@ -105,11 +87,9 @@ export default function TaskDetailsPage({ taskId }: TaskDetailsPageProps) {
 
     try {
       const response = await taskService.getComments(taskId);
-
       setComments(response.data);
     } catch (error) {
       console.error("Failed to load comments:", error);
-
       toast.error("Failed to load task comments.");
     } finally {
       setCommentsLoading(false);
@@ -141,7 +121,6 @@ export default function TaskDetailsPage({ taskId }: TaskDetailsPageProps) {
       toast.success("Comment added.");
     } catch (error) {
       console.error("Failed to add comment:", error);
-
       toast.error("Failed to add comment.");
     } finally {
       setSendingComment(false);
@@ -400,7 +379,6 @@ export default function TaskDetailsPage({ taskId }: TaskDetailsPageProps) {
                             className="mt-3 inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium transition hover:bg-muted"
                           >
                             <Paperclip className="h-4 w-4" />
-
                             {comment.attachment_name || "View attachment"}
                           </a>
                         )}
@@ -473,28 +451,6 @@ export default function TaskDetailsPage({ taskId }: TaskDetailsPageProps) {
             </CardContent>
           </Card>
 
-          {/* Designer cost */}
-          {task.status === "APPROVED" && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <CircleDollarSign className="h-4 w-4" />
-                  Designer Cost
-                </CardTitle>
-              </CardHeader>
-
-              <CardContent>
-                <p className="text-2xl font-semibold tracking-tight">
-                  {formatCurrency(task.designer_charge)}
-                </p>
-
-                <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                  Designer charge recorded when this task was approved.
-                </p>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Deadline */}
           <Card>
             <CardHeader>
@@ -552,7 +508,6 @@ export default function TaskDetailsPage({ taskId }: TaskDetailsPageProps) {
                     const currentIndex = statuses.indexOf(task.status);
 
                     const stepIndex = index;
-
                     const completed = currentIndex >= stepIndex;
 
                     return (
