@@ -46,6 +46,7 @@ export interface Order {
 export interface OrderInventoryItemCreate {
   inventory_item_id: string;
   input_quantity: string;
+  discount_amount?: number;
 }
 
 export interface OrderCreatePayload {
@@ -57,10 +58,13 @@ export interface OrderCreatePayload {
   due_date?: string;
   inventory_items?: OrderInventoryItemCreate[];
 }
+
 export interface OrderInventoryItemUpdate {
   inventory_item_id: string;
   input_quantity: string;
+  discount_amount?: number;
 }
+
 export interface OrderUpdatePayload {
   title?: string;
   description?: string;

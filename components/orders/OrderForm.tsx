@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 
 import {
   CalendarDays,
@@ -9,7 +9,6 @@ import {
   ChevronRight,
   FilePenLine,
   Loader2,
-  Minus,
   Package,
   Plus,
   Printer,
@@ -41,47 +40,102 @@ interface OrderFormProps {
 interface SelectedInventoryItem {
   inventory_item_id: string;
   input_quantity: string;
+  discount_amount: string;
 }
 
+const DIMENSION_UNITS = ["feet", "foot", "ft"];
+
+function isDimensionUnit(unit: string): boolean {
+  return DIMENSION_UNITS.includes(unit.trim().toLowerCase());
+}
+
+/**
+ * Supports:
+ * 12
+ * 3x2
+ * 3x2x2
+ * 3x2, 4x5
+ * 3x2x2, 4x5x3
+ *
+ * Two dimensions calculate length × width.
+ * Three dimensions calculate length × width × copies.
+ *
+ * Dimension expressions are only allowed for feet-based inventory.
+ */
 function calculatePreview(unit: string, inputQuantity: string): number | null {
   const value = inputQuantity.trim();
 
-  if (!value) {
-    return null;
-  }
+  if (!value) return null;
 
+  // Direct numeric quantities remain valid for every inventory unit.
   if (/^\d+$/.test(value)) {
     const quantity = Number(value);
-
-    return quantity > 0 ? quantity : null;
+    return Number.isSafeInteger(quantity) && quantity > 0 ? quantity : null;
   }
 
-  const match = value.match(
-    /^\s*(\d+(?:\.\d+)?)\s*(?:\*|x|X|×)\s*(\d+(?:\.\d+)?)\s*$/,
-  );
+  if (!isDimensionUnit(unit)) return null;
 
-  if (!match) {
+  const expressions = value.split(",");
+
+  if (expressions.some((expression) => !expression.trim())) {
     return null;
   }
 
-  const normalizedUnit = unit.trim().toLowerCase();
+  let total = 0;
 
-  if (!["feet", "foot", "ft"].includes(normalizedUnit)) {
-    return null;
+  for (const expression of expressions) {
+    const parts = expression.trim().split(/\s*(?:\*|x|X|×)\s*/);
+
+    if (parts.length !== 2 && parts.length !== 3) {
+      return null;
+    }
+
+    if (parts.some((part) => !/^\d+(?:\.\d+)?$/.test(part))) {
+      return null;
+    }
+
+    const numbers = parts.map(Number);
+
+    if (numbers.some((number) => !Number.isFinite(number) || number <= 0)) {
+      return null;
+    }
+
+    const length = numbers[0];
+    const width = numbers[1];
+    const copies = numbers.length === 3 ? numbers[2] : 1;
+
+    // Copy count must be a whole number.
+    if (!Number.isInteger(copies)) return null;
+
+    const expressionTotal = length * width * copies;
+
+    if (
+      !Number.isFinite(expressionTotal) ||
+      !Number.isInteger(expressionTotal) ||
+      expressionTotal <= 0
+    ) {
+      return null;
+    }
+
+    total += expressionTotal;
+
+    if (!Number.isSafeInteger(total)) return null;
   }
 
-  const calculated = Number(match[1]) * Number(match[2]);
+  return total > 0 ? total : null;
+}
 
-  if (!Number.isFinite(calculated) || calculated <= 0) {
-    return null;
-  }
-
-  return calculated;
+function formatCurrency(value: number): string {
+  return new Intl.NumberFormat("en-NG", {
+    style: "currency",
+    currency: "NGN",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value);
 }
 
 export default function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
   const [customer, setCustomer] = useState<Customer | null>(null);
-
   const [orderType, setOrderType] = useState<"DESIGN" | "PRINT">("DESIGN");
 
   const [dueDate, setDueDate] = useState("");
@@ -93,7 +147,6 @@ export default function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
   const [createdOrderId, setCreatedOrderId] = useState<string | null>(null);
   const [step, setStep] = useState<"details" | "files">("details");
 
-  // Inventory
   const [inventoryItems, setInventoryItems] = useState<InventoryItem[]>([]);
   const [inventoryLoading, setInventoryLoading] = useState(true);
   const [inventorySearch, setInventorySearch] = useState("");
@@ -128,7 +181,7 @@ export default function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
       }
     };
 
-    loadInventory();
+    void loadInventory();
 
     return () => {
       cancelled = true;
@@ -138,37 +191,32 @@ export default function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
   const filteredInventory = useMemo(() => {
     const search = inventorySearch.trim().toLowerCase();
 
-    if (!search) {
-      return inventoryItems;
-    }
+    if (!search) return inventoryItems;
 
-    return inventoryItems.filter((item) => {
-      return (
-        item.name.toLowerCase().includes(search) ||
-        item.category.toLowerCase().includes(search) ||
-        item.unit.toLowerCase().includes(search)
-      );
-    });
+    return inventoryItems.filter((item) =>
+      [item.name, item.category, item.unit].some((value) =>
+        value.toLowerCase().includes(search),
+      ),
+    );
   }, [inventoryItems, inventorySearch]);
 
-  const selectedItemIds = useMemo(() => {
-    return new Set(selectedInventory.map((item) => item.inventory_item_id));
-  }, [selectedInventory]);
+  const selectedItemIds = useMemo(
+    () => new Set(selectedInventory.map((item) => item.inventory_item_id)),
+    [selectedInventory],
+  );
 
-  const getInventoryItem = (itemId: string) => {
-    return inventoryItems.find((item) => item.id === itemId);
-  };
+  const getInventoryItem = (itemId: string) =>
+    inventoryItems.find((item) => item.id === itemId);
 
   const addInventoryItem = (item: InventoryItem) => {
-    if (selectedItemIds.has(item.id)) {
-      return;
-    }
+    if (selectedItemIds.has(item.id)) return;
 
     setSelectedInventory((current) => [
       ...current,
       {
         inventory_item_id: item.id,
         input_quantity: "",
+        discount_amount: "0",
       },
     ]);
   };
@@ -179,20 +227,19 @@ export default function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
     );
   };
 
-  const updateInventoryQuantity = (itemId: string, inputQuantity: string) => {
+  const updateInventoryField = (
+    itemId: string,
+    field: "input_quantity" | "discount_amount",
+    value: string,
+  ) => {
     setSelectedInventory((current) =>
       current.map((item) =>
-        item.inventory_item_id === itemId
-          ? {
-              ...item,
-              input_quantity: inputQuantity,
-            }
-          : item,
+        item.inventory_item_id === itemId ? { ...item, [field]: value } : item,
       ),
     );
   };
 
-  const validateInventory = () => {
+  const validateInventory = (): boolean => {
     for (const selected of selectedInventory) {
       const item = getInventoryItem(selected.inventory_item_id);
 
@@ -210,27 +257,38 @@ export default function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
         return false;
       }
 
-      const preview = calculatePreview(item.unit, input);
+      const quantity = calculatePreview(item.unit, input);
 
-      const isPlainNumber = /^\d+$/.test(input);
-
-      if (preview === null && !isPlainNumber) {
-        if (["feet", "foot", "ft"].includes(item.unit.trim().toLowerCase())) {
-          toast.error(
-            `Invalid quantity for "${item.name}". Use a value such as 12 or 3*4.`,
-          );
-        } else {
-          toast.error(
-            `Invalid quantity for "${item.name}". Enter a whole number.`,
-          );
-        }
-
+      if (quantity === null) {
+        toast.error(
+          isDimensionUnit(item.unit)
+            ? `Invalid quantity for "${item.name}". Use 12, 3x2, 3x2x2, or comma-separated expressions such as 3x2, 4x5.`
+            : `Invalid quantity for "${item.name}". Enter a positive whole number.`,
+        );
         return false;
       }
 
-      if (preview !== null && !Number.isInteger(preview)) {
+      const discountText = selected.discount_amount.trim();
+      const discount = Number(discountText);
+
+      if (!discountText || !Number.isFinite(discount) || discount < 0) {
         toast.error(
-          `"${input}" results in ${preview} ${item.unit}. Inventory quantities must currently be whole numbers.`,
+          `Enter a valid non-negative per-unit discount for "${item.name}".`,
+        );
+        return false;
+      }
+
+      // Currency discounts must have no more than two decimal places.
+      if (!/^\d+(?:\.\d{1,2})?$/.test(discountText)) {
+        toast.error(
+          `The discount for "${item.name}" must have no more than two decimal places.`,
+        );
+        return false;
+      }
+
+      if (discount > item.unit_selling_price) {
+        toast.error(
+          `The discount for "${item.name}" cannot exceed its unit selling price of ${formatCurrency(item.unit_selling_price)}.`,
         );
         return false;
       }
@@ -266,9 +324,7 @@ export default function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
       return;
     }
 
-    if (!validateInventory()) {
-      return;
-    }
+    if (!validateInventory()) return;
 
     try {
       setCreating(true);
@@ -286,22 +342,27 @@ export default function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
             ? selectedInventory.map((item) => ({
                 inventory_item_id: item.inventory_item_id,
                 input_quantity: item.input_quantity.trim(),
+                discount_amount: Number(item.discount_amount),
               }))
             : undefined,
       });
 
       setCreatedOrderId(response.data.id);
-
       toast.success("Order created successfully.");
-
       setStep("files");
     } catch (error: any) {
       console.error("Failed to create order:", error);
 
+      const detail = error?.response?.data?.detail;
       const message =
-        error?.response?.data?.detail ||
-        error?.response?.data?.message ||
-        "Failed to create order. Please try again.";
+        typeof detail === "string"
+          ? detail
+          : Array.isArray(detail)
+            ? detail
+                .map((entry: any) => entry.msg ?? JSON.stringify(entry))
+                .join(", ")
+            : error?.response?.data?.message ||
+              "Failed to create order. Please try again.";
 
       toast.error(message);
     } finally {
@@ -309,9 +370,7 @@ export default function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
     }
   };
 
-  const handleFinish = () => {
-    onSuccess();
-  };
+  const handleFinish = () => onSuccess();
 
   return (
     <div className="w-full">
@@ -353,11 +412,10 @@ export default function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
             <Label>
               Customer <span className="text-red-500">*</span>
             </Label>
-
             <CustomerSelector value={customer} onChange={setCustomer} />
           </div>
 
-          {/* Order Type */}
+          {/* Order type */}
           <div className="space-y-2">
             <Label>
               Order Type <span className="text-red-500">*</span>
@@ -421,22 +479,21 @@ export default function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
             <Label htmlFor="order-title">
               Order Title <span className="text-red-500">*</span>
             </Label>
-
             <Input
               id="order-title"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              placeholder="e.g. 6-seater sofa reupholstery"
+              placeholder="e.g. Customer brochure printing"
               maxLength={200}
+              required
             />
           </div>
 
-          {/* Requirements */}
+          {/* Description */}
           <div className="space-y-2">
             <Label htmlFor="order-description">
               Requirements / Description
             </Label>
-
             <Textarea
               id="order-description"
               value={description}
@@ -446,7 +503,7 @@ export default function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
             />
           </div>
 
-          {/* Inventory / Materials */}
+          {/* Materials */}
           <div className="rounded-2xl border border-gray-200 bg-gray-50/70 p-4 sm:p-5">
             <div className="mb-4 flex items-start justify-between gap-4">
               <div className="flex items-start gap-3">
@@ -458,10 +515,9 @@ export default function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
                   <h3 className="font-semibold text-gray-900">
                     Materials / Inventory
                   </h3>
-
                   <p className="mt-0.5 text-sm text-gray-500">
-                    Select materials that will be used for this order. Stock is
-                    deducted immediately when the order is created.
+                    Enter dimensions or quantities and any fixed discount per
+                    unit. Stock is deducted when the order is created.
                   </p>
                 </div>
               </div>
@@ -473,10 +529,9 @@ export default function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
               )}
             </div>
 
-            {/* Inventory search */}
+            {/* Search */}
             <div className="relative mb-4">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-
               <Input
                 value={inventorySearch}
                 onChange={(event) => setInventorySearch(event.target.value)}
@@ -495,11 +550,9 @@ export default function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
               ) : filteredInventory.length === 0 ? (
                 <div className="py-8 text-center">
                   <Package className="mx-auto mb-2 h-8 w-8 text-gray-300" />
-
                   <p className="text-sm font-medium text-gray-700">
                     No inventory items found
                   </p>
-
                   <p className="mt-1 text-xs text-gray-500">
                     Try another search.
                   </p>
@@ -530,7 +583,9 @@ export default function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
 
                           <p className="mt-0.5 text-xs text-gray-500">
                             {item.category} · {item.quantity} {item.unit}{" "}
-                            available
+                            available ·{" "}
+                            {formatCurrency(item.unit_selling_price)}
+                            /unit
                           </p>
                         </div>
 
@@ -561,7 +616,7 @@ export default function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
               )}
             </div>
 
-            {/* Selected inventory */}
+            {/* Selected materials */}
             {selectedInventory.length > 0 && (
               <div className="mt-4 space-y-3">
                 <p className="text-sm font-semibold text-gray-800">
@@ -571,112 +626,236 @@ export default function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
                 {selectedInventory.map((selected) => {
                   const item = getInventoryItem(selected.inventory_item_id);
 
-                  if (!item) {
-                    return null;
-                  }
+                  if (!item) return null;
 
-                  const preview = calculatePreview(
+                  const quantity = calculatePreview(
                     item.unit,
                     selected.input_quantity,
                   );
 
-                  const isDimensionUnit = ["feet", "foot", "ft"].includes(
-                    item.unit.trim().toLowerCase(),
-                  );
+                  const dimensionUnit = isDimensionUnit(item.unit);
+                  const discountText = selected.discount_amount.trim();
+                  const discount = Number(discountText);
+                  const validDiscount =
+                    discountText !== "" &&
+                    Number.isFinite(discount) &&
+                    discount >= 0 &&
+                    discount <= item.unit_selling_price &&
+                    /^\d+(?:\.\d{1,2})?$/.test(discountText);
+
+                  const discountedUnitPrice = validDiscount
+                    ? item.unit_selling_price - discount
+                    : null;
+
+                  const materialTotal =
+                    quantity !== null && discountedUnitPrice !== null
+                      ? quantity * discountedUnitPrice
+                      : null;
 
                   return (
                     <div
                       key={selected.inventory_item_id}
                       className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4"
                     >
-                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
                         <div className="min-w-0 flex-1">
                           <p className="font-medium text-gray-900">
                             {item.name}
                           </p>
-
                           <p className="text-xs text-gray-500">
                             Available: {item.quantity} {item.unit}
                           </p>
+                          <p className="mt-1 text-xs text-gray-500">
+                            Original unit price:{" "}
+                            {formatCurrency(item.unit_selling_price)}
+                          </p>
                         </div>
 
-                        <div className="flex items-center gap-2">
-                          <div className="relative">
-                            <Input
-                              value={selected.input_quantity}
-                              onChange={(event) =>
-                                updateInventoryQuantity(
-                                  selected.inventory_item_id,
-                                  event.target.value,
-                                )
-                              }
-                              placeholder={
-                                isDimensionUnit ? "e.g. 3*4" : "e.g. 12"
-                              }
-                              className="w-32 pr-12"
-                            />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          onClick={() =>
+                            removeInventoryItem(selected.inventory_item_id)
+                          }
+                          aria-label={`Remove ${item.name}`}
+                          className="self-end text-gray-400 hover:bg-red-50 hover:text-red-600 sm:self-start"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
 
-                            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
-                              input
-                            </span>
-                          </div>
-
-                          <span className="text-sm text-gray-500">
-                            {item.unit}
-                          </span>
-
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            onClick={() =>
-                              removeInventoryItem(selected.inventory_item_id)
-                            }
-                            className="text-gray-400 hover:bg-red-50 hover:text-red-600"
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <div className="space-y-1.5">
+                          <Label
+                            htmlFor={`quantity-${item.id}`}
+                            className="text-xs"
                           >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                            Quantity / Dimensions
+                          </Label>
+                          <Input
+                            id={`quantity-${item.id}`}
+                            value={selected.input_quantity}
+                            onChange={(event) =>
+                              updateInventoryField(
+                                selected.inventory_item_id,
+                                "input_quantity",
+                                event.target.value,
+                              )
+                            }
+                            placeholder={
+                              dimensionUnit ? "e.g. 3x2x2, 4x5" : "e.g. 12"
+                            }
+                          />
+                          {dimensionUnit && (
+                            <p className="text-xs text-gray-500">
+                              Use length × width × copies. Separate multiple
+                              expressions with commas.
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label
+                            htmlFor={`discount-${item.id}`}
+                            className="text-xs"
+                          >
+                            Fixed discount per unit (₦)
+                          </Label>
+                          <Input
+                            id={`discount-${item.id}`}
+                            type="number"
+                            min="0"
+                            max={item.unit_selling_price}
+                            step="0.01"
+                            value={selected.discount_amount}
+                            onChange={(event) =>
+                              updateInventoryField(
+                                selected.inventory_item_id,
+                                "discount_amount",
+                                event.target.value,
+                              )
+                            }
+                            placeholder="0.00"
+                          />
+                          <p className="text-xs text-gray-500">
+                            Maximum: {formatCurrency(item.unit_selling_price)}
+                          </p>
                         </div>
                       </div>
 
-                      {/* Calculation preview */}
-                      {selected.input_quantity.trim() && (
-                        <div className="mt-3 rounded-lg bg-gray-50 px-3 py-2 text-xs">
-                          {preview !== null ? (
-                            <div className="flex items-center justify-between gap-3">
-                              <span className="text-gray-500">
-                                Calculated quantity
-                              </span>
-
-                              <span className="font-semibold text-gray-900">
-                                {preview} {item.unit}
-                              </span>
-                            </div>
-                          ) : isDimensionUnit &&
-                            selected.input_quantity.includes("*") ? (
-                            <span className="text-amber-600">
-                              Enter dimensions such as 3*4 to calculate the
-                              required quantity.
-                            </span>
-                          ) : (
-                            <span className="text-gray-500">
-                              Enter a valid quantity.
-                            </span>
-                          )}
+                      {/* Live calculation */}
+                      <div className="mt-3 space-y-2 rounded-lg bg-gray-50 p-3 text-sm">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-gray-500">
+                            Calculated quantity
+                          </span>
+                          <span className="font-semibold text-gray-900">
+                            {quantity !== null
+                              ? `${quantity} ${item.unit}`
+                              : "—"}
+                          </span>
                         </div>
-                      )}
 
-                      {/* Helpful feet example */}
-                      {isDimensionUnit && !selected.input_quantity.trim() && (
-                        <p className="mt-2 text-xs text-gray-500">
-                          Example: enter{" "}
-                          <span className="font-medium text-gray-700">3*4</span>{" "}
-                          to use 12 {item.unit}.
-                        </p>
-                      )}
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-gray-500">
+                            Discounted unit price
+                          </span>
+                          <span className="font-medium text-gray-900">
+                            {discountedUnitPrice !== null
+                              ? formatCurrency(discountedUnitPrice)
+                              : "—"}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center justify-between gap-3 border-t border-gray-200 pt-2">
+                          <span className="font-medium text-gray-700">
+                            Material total
+                          </span>
+                          <span className="font-semibold text-blue-700">
+                            {materialTotal !== null
+                              ? formatCurrency(materialTotal)
+                              : "—"}
+                          </span>
+                        </div>
+
+                        {selected.input_quantity.trim() &&
+                          quantity === null && (
+                            <p className="text-xs text-amber-700">
+                              Invalid quantity. Check the expression format and
+                              ensure the calculated result is a positive whole
+                              number.
+                            </p>
+                          )}
+
+                        {discountText && !validDiscount && (
+                          <p className="text-xs text-red-600">
+                            Enter a valid discount between ₦0 and the original
+                            unit price, with no more than two decimal places.
+                          </p>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
+
+                {/* Aggregate material cost preview */}
+                <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm font-medium text-blue-900">
+                      Total selected material cost
+                    </span>
+                    <span className="text-lg font-bold text-blue-800">
+                      {selectedInventory.every((selected) => {
+                        const item = getInventoryItem(
+                          selected.inventory_item_id,
+                        );
+                        if (!item) return false;
+
+                        return (
+                          calculatePreview(
+                            item.unit,
+                            selected.input_quantity,
+                          ) !== null &&
+                          selected.discount_amount.trim() !== "" &&
+                          Number.isFinite(Number(selected.discount_amount)) &&
+                          Number(selected.discount_amount) >= 0 &&
+                          Number(selected.discount_amount) <=
+                            item.unit_selling_price &&
+                          /^\d+(?:\.\d{1,2})?$/.test(
+                            selected.discount_amount.trim(),
+                          )
+                        );
+                      })
+                        ? formatCurrency(
+                            selectedInventory.reduce((total, selected) => {
+                              const item = getInventoryItem(
+                                selected.inventory_item_id,
+                              );
+                              if (!item) return total;
+
+                              const quantity = calculatePreview(
+                                item.unit,
+                                selected.input_quantity,
+                              );
+                              if (quantity === null) return total;
+
+                              const discount = Number(selected.discount_amount);
+
+                              return (
+                                total +
+                                quantity * (item.unit_selling_price - discount)
+                              );
+                            }, 0),
+                          )
+                        : "Complete valid quantities and discounts"}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-xs text-blue-700">
+                    This is a material-cost preview. The order&apos;s Total
+                    Amount below remains the amount you enter for the customer.
+                  </p>
+                </div>
               </div>
             )}
 
@@ -688,18 +867,16 @@ export default function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
             )}
           </div>
 
-          {/* Amount + Due Date */}
+          {/* Amount and due date */}
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="order-amount">
-                Total Amount <span className="text-red-500">*</span>
+                Total Order Amount <span className="text-red-500">*</span>
               </Label>
-
               <div className="relative">
                 <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm text-gray-500">
                   ₦
                 </span>
-
                 <Input
                   id="order-amount"
                   type="number"
@@ -709,16 +886,15 @@ export default function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
                   onChange={(event) => setAmount(event.target.value)}
                   placeholder="0.00"
                   className="pl-8"
+                  required
                 />
               </div>
             </div>
 
             <div className="space-y-2">
               <Label htmlFor="order-due-date">Due Date</Label>
-
               <div className="relative">
                 <CalendarDays className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-
                 <Input
                   id="order-due-date"
                   type="date"
@@ -730,23 +906,20 @@ export default function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
             </div>
           </div>
 
-          {/* Inventory transaction notice */}
+          {/* Inventory notice */}
           {selectedInventory.length > 0 && (
             <div className="rounded-xl border border-blue-100 bg-blue-50 px-4 py-3">
               <div className="flex gap-3">
-                <div className="mt-0.5">
-                  <Check className="h-4 w-4 text-blue-600" />
-                </div>
-
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-blue-600" />
                 <div>
                   <p className="text-sm font-medium text-blue-900">
                     Inventory will be deducted when this order is created
                   </p>
-
                   <p className="mt-1 text-xs leading-5 text-blue-700">
-                    The selected materials and their calculated quantities will
-                    be processed together with the order. If there is
-                    insufficient stock, the order will not be created.
+                    The backend validates stock availability and processes the
+                    order and its material requirements together. If there is
+                    insufficient stock or an invalid discount, the request
+                    should fail without creating the order.
                   </p>
                 </div>
               </div>
@@ -792,29 +965,23 @@ export default function OrderForm({ onSuccess, onCancel }: OrderFormProps) {
             </h3>
 
             <p className="mx-auto mt-2 max-w-md text-sm text-gray-600">
-              The order has been created and any selected inventory materials
-              have been deducted from stock.
+              The order has been created and selected inventory materials have
+              been processed.
             </p>
           </div>
 
-          {/* File upload */}
+          {/* Files */}
           {createdOrderId && (
             <div className="rounded-2xl border border-gray-200 bg-white p-4 sm:p-5">
-              <div className="mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-gray-600">
-                    <Upload className="h-5 w-5" />
-                  </div>
-
-                  <div>
-                    <h3 className="font-semibold text-gray-900">
-                      Attach Files
-                    </h3>
-
-                    <p className="text-sm text-gray-500">
-                      Upload any designs, references or customer files.
-                    </p>
-                  </div>
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100 text-gray-600">
+                  <Upload className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">Attach Files</h3>
+                  <p className="text-sm text-gray-500">
+                    Upload designs, references or customer files.
+                  </p>
                 </div>
               </div>
 

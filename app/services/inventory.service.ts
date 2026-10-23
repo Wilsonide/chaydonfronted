@@ -22,7 +22,10 @@ export interface StockMovement {
   quantity: number;
   movement_type: MovementType | "ADJUSTMENT";
   unit_selling_price: number;
+  discount_amount: number;
+  discounted_unit_selling_price?: number;
   total_selling_price: number;
+  dimension_input: string | null;
   reason: string | null;
   recorded_by: string;
   production_folder_id: string | null;
@@ -110,6 +113,9 @@ export interface OrderMaterialRequirement {
   consumed_quantity: number;
   remaining_quantity: number;
   unit_selling_price: number;
+  discount_amount: number;
+  discounted_unit_selling_price?: number;
+  dimension_input: string | null;
   required_cost: number;
   consumed_cost: number;
   created_at: string;
@@ -122,6 +128,8 @@ export interface OrderMaterialRequirement {
 export interface OrderMaterialRequirementPayload {
   inventory_item_id: string;
   required_quantity: number;
+  discount_amount?: number;
+  dimension_input?: string;
 }
 
 /**
@@ -174,10 +182,7 @@ class InventoryService {
     return api.get<PaginatedResponse<StockMovement>>(
       `/inventory/${itemId}/movements`,
       {
-        params: {
-          page,
-          limit,
-        },
+        params: { page, limit },
       },
     );
   }
@@ -192,9 +197,6 @@ class InventoryService {
     );
   }
 
-  /**
-   * Add a material requirement to a PRINT order.
-   */
   async addOrderMaterialRequirement(
     orderId: string,
     data: OrderMaterialRequirementPayload,
@@ -205,38 +207,23 @@ class InventoryService {
     );
   }
 
-  /**
-   * Get calculated material requirements and costs
-   * for a PRINT order.
-   */
   async getOrderMaterialCalculation(orderId: string) {
     return api.get<OrderMaterialCalculation>(
       `/inventory/orders/${orderId}/materials`,
     );
   }
 
-  /**
-   * Consume all remaining material requirements
-   * for a PRINT order.
-   */
   async consumeOrderMaterials(orderId: string) {
     return api.post<StockMovement[]>(
       `/inventory/orders/${orderId}/materials/consume`,
     );
   }
 
-  /**
-   * Get all inventory movements associated with
-   * a particular order.
-   */
   async getOrderMovements(orderId: string, page = 1, limit = 10) {
     return api.get<PaginatedResponse<StockMovement>>(
       `/inventory/orders/${orderId}/movements`,
       {
-        params: {
-          page,
-          limit,
-        },
+        params: { page, limit },
       },
     );
   }
