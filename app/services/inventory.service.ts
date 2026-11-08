@@ -1,5 +1,9 @@
 import api from "./api";
 
+// ============================================================
+// INVENTORY
+// ============================================================
+
 export type MovementType = "STOCK_IN" | "STOCK_OUT";
 
 export interface InventoryItem {
@@ -22,9 +26,16 @@ export interface StockMovement {
   quantity: number;
   movement_type: MovementType | "ADJUSTMENT";
   unit_selling_price: number;
+
+  /**
+   * Discount allocated to this specific stock movement.
+   * This is not necessarily the full order requirement discount.
+   */
   discount_amount: number;
-  discounted_unit_selling_price?: number;
+
+  gross_total_selling_price: number;
   total_selling_price: number;
+
   dimension_input: string | null;
   reason: string | null;
   recorded_by: string;
@@ -52,6 +63,10 @@ export interface InventoryDashboard {
   categories: number;
 }
 
+// ============================================================
+// PAGINATION
+// ============================================================
+
 export interface PaginationMeta {
   page: number;
   limit: number;
@@ -63,6 +78,10 @@ export interface PaginatedResponse<T> {
   data: T[];
   meta: PaginationMeta;
 }
+
+// ============================================================
+// INVENTORY PAYLOADS
+// ============================================================
 
 export interface InventoryCreatePayload {
   name: string;
@@ -102,28 +121,71 @@ export interface ProductionConsumptionPayload {
   reason?: string;
 }
 
+// ============================================================
+// ORDER MATERIAL REQUIREMENTS
+// ============================================================
+
 /**
- * Material requirement for a PRINT order.
+ * Material requirement for an order.
+ *
+ * discount_amount is one fixed monetary discount
+ * applied to the entire required material quantity.
  */
 export interface OrderMaterialRequirement {
   id: string;
   order_id: string;
   inventory_item_id: string;
+
   required_quantity: number;
   consumed_quantity: number;
   remaining_quantity: number;
+
   unit_selling_price: number;
+
+  /**
+   * Overall fixed discount for this requirement.
+   */
   discount_amount: number;
-  discounted_unit_selling_price?: number;
-  dimension_input: string | null;
+
+  /**
+   * Cost before applying the overall discount.
+   */
+  gross_required_cost: number;
+
+  /**
+   * Discount allocated to already-consumed quantities.
+   */
+  consumed_discount: number;
+
+  /**
+   * Discount allocated to remaining quantities.
+   */
+  remaining_discount: number;
+
+  /**
+   * Total material cost after discount.
+   */
   required_cost: number;
+
+  /**
+   * Cost attributable to consumed quantities.
+   */
   consumed_cost: number;
+
+  /**
+   * Cost attributable to remaining quantities.
+   */
+  remaining_cost: number;
+
+  dimension_input: string | null;
+
   created_at: string;
   updated_at: string;
 }
 
 /**
- * Payload for adding a material requirement to a PRINT order.
+ * Payload for adding an additional material requirement
+ * to an existing order.
  */
 export interface OrderMaterialRequirementPayload {
   inventory_item_id: string;
@@ -133,13 +195,20 @@ export interface OrderMaterialRequirementPayload {
 }
 
 /**
- * Calculated material summary for a PRINT order.
+ * Calculated material summary for an order.
  */
 export interface OrderMaterialCalculation {
   order_id: string;
+
   total_required_cost: number;
   total_consumed_cost: number;
   total_remaining_cost: number;
+
+  /**
+   * Sum of the overall discounts on all requirements.
+   */
+  total_discount: number;
+
   requirements: OrderMaterialRequirement[];
 }
 

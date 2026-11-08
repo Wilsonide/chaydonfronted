@@ -28,21 +28,21 @@ export interface Order {
   id: string;
   customer_id: string;
   customer: OrderCustomer;
-
   order_type: OrderType;
-
   title: string;
   description: string | null;
   status: OrderStatus;
   total_amount: number;
   due_date: string | null;
-
   files: OrderFile[];
-
   created_at: string;
   updated_at: string;
 }
 
+/**
+ * One fixed monetary discount applied to the entire
+ * required material quantity, not to each unit.
+ */
 export interface OrderInventoryItemCreate {
   inventory_item_id: string;
   input_quantity: string;

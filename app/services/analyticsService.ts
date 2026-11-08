@@ -1,4 +1,4 @@
-import { AnalyticsSummary } from "../types/analytics";
+import type { AnalyticsSummary } from "@/app/types/analytics";
 import api from "./api";
 
 const analyticsService = {

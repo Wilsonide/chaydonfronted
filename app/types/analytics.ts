@@ -1,33 +1,28 @@
+export type AnalyticsValue = string | number;
+
 export interface DailyAnalytics {
-  day: number;
   date: string;
   orders: number;
-  revenue: string;
-  material_cost: string;
-  profit: string;
-  inventory_units_used: number;
-  inventory_value_used: string;
+  order_value: AnalyticsValue;
+  revenue_received: AnalyticsValue;
+  outstanding_balance: AnalyticsValue;
 }
 
 export interface MonthlyAnalytics {
   month: number;
   month_name: string;
   orders: number;
-  revenue: string;
-  material_cost: string;
-  profit: string;
-  inventory_units_used: number;
-  inventory_value_used: string;
+  order_value: AnalyticsValue;
+  revenue_received: AnalyticsValue;
+  outstanding_balance: AnalyticsValue;
   daily: DailyAnalytics[];
 }
 
 export interface AnalyticsSummary {
   year: number;
   total_orders: number;
-  total_revenue: string;
-  total_material_cost: string;
-  total_profit: string;
-  total_inventory_units_used: number;
-  total_inventory_value_used: string;
+  total_order_value: AnalyticsValue;
+  total_revenue_received: AnalyticsValue;
+  total_outstanding_balance: AnalyticsValue;
   monthly: MonthlyAnalytics[];
 }
